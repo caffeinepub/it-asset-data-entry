@@ -1,13 +1,28 @@
 import Nat "mo:core/Nat";
-import Text "mo:core/Text";
 import Map "mo:core/Map";
-import Runtime "mo:core/Runtime";
 import Iter "mo:core/Iter";
-import Migration "migration";
+import Runtime "mo:core/Runtime";
 
-(with migration = Migration.run)
+
+
 actor {
   type ITAsset = {
+    id : Nat;
+    name : Text;
+    category : Category;
+    serialNumber : Text;
+    macId : Text;
+    serviceTag : Text;
+    status : Status;
+    assignedDepartment : Department;
+    location : Text;
+    lastServiceDate : Text;
+    purchaseDate : Text;
+    purchaseVendor : Text;
+    notes : Text;
+  };
+
+  type UpdateAssetParams = {
     id : Nat;
     name : Text;
     category : Category;
@@ -56,7 +71,7 @@ actor {
   let assets = Map.empty<Nat, ITAsset>();
   var nextId = 1;
 
-  public shared ({ caller }) func addAsset(
+  public func addAsset(
     name : Text,
     category : Category,
     serialNumber : Text,
@@ -90,25 +105,53 @@ actor {
     asset.id;
   };
 
-  public query ({ caller }) func getAsset(id : Nat) : async ITAsset {
+  public func updateAsset(assetParams : UpdateAssetParams) : async {
+    #ok : ();
+    #err : Text;
+  } {
+    switch (assets.get(assetParams.id)) {
+      case (null) { #err("Asset not found") };
+      case (?_) {
+        let updatedAsset : ITAsset = {
+          id = assetParams.id;
+          name = assetParams.name;
+          category = assetParams.category;
+          serialNumber = assetParams.serialNumber;
+          macId = assetParams.macId;
+          serviceTag = assetParams.serviceTag;
+          status = assetParams.status;
+          assignedDepartment = assetParams.assignedDepartment;
+          location = assetParams.location;
+          lastServiceDate = assetParams.lastServiceDate;
+          purchaseDate = assetParams.purchaseDate;
+          purchaseVendor = assetParams.purchaseVendor;
+          notes = assetParams.notes;
+        };
+        assets.add(assetParams.id, updatedAsset);
+        #ok(());
+      };
+    };
+  };
+
+  public query func getAsset(id : Nat) : async ITAsset {
     switch (assets.get(id)) {
       case (null) { Runtime.trap("Asset not found") };
       case (?asset) { asset };
     };
   };
 
-  public query ({ caller }) func getAllAssets() : async [ITAsset] {
+  public query func getAllAssets() : async [ITAsset] {
     assets.values().toArray();
   };
 
-  public query ({ caller }) func getAssetName(id : Nat) : async ?Text {
+  public query func getAssetName(id : Nat) : async ?Text {
     switch (assets.get(id)) {
       case (null) { null };
       case (?asset) { ?asset.name };
     };
   };
 
-  public shared ({ caller }) func deleteAsset(id : Nat) : async () {
+  public func deleteAsset(id : Nat) : async () {
     if (not assets.containsKey(id)) {
       Runtime.trap("Asset not found");
     };

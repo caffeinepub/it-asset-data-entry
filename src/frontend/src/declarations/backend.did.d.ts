@@ -46,6 +46,21 @@ export type Status = { 'Inactive' : null } |
   { 'Active' : null } |
   { 'InRepair' : null } |
   { 'Retired' : null };
+export interface UpdateAssetParams {
+  'id' : bigint,
+  'macId' : string,
+  'status' : Status,
+  'purchaseVendor' : string,
+  'purchaseDate' : string,
+  'name' : string,
+  'serviceTag' : string,
+  'serialNumber' : string,
+  'notes' : string,
+  'lastServiceDate' : string,
+  'category' : Category,
+  'assignedDepartment' : Department,
+  'location' : string,
+}
 export interface _SERVICE {
   'addAsset' : ActorMethod<
     [
@@ -68,6 +83,11 @@ export interface _SERVICE {
   'getAllAssets' : ActorMethod<[], Array<ITAsset>>,
   'getAsset' : ActorMethod<[bigint], ITAsset>,
   'getAssetName' : ActorMethod<[bigint], [] | [string]>,
+  'updateAsset' : ActorMethod<
+    [UpdateAssetParams],
+    { 'ok' : null } |
+      { 'err' : string }
+  >,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

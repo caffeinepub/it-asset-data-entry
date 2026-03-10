@@ -7,6 +7,21 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface UpdateAssetParams {
+    id: bigint;
+    macId: string;
+    status: Status;
+    purchaseVendor: string;
+    purchaseDate: string;
+    name: string;
+    serviceTag: string;
+    serialNumber: string;
+    notes: string;
+    lastServiceDate: string;
+    category: Category;
+    assignedDepartment: Department;
+    location: string;
+}
 export interface ITAsset {
     id: bigint;
     macId: string;
@@ -55,4 +70,11 @@ export interface backendInterface {
     getAllAssets(): Promise<Array<ITAsset>>;
     getAsset(id: bigint): Promise<ITAsset>;
     getAssetName(id: bigint): Promise<string | null>;
+    updateAsset(assetParams: UpdateAssetParams): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
 }

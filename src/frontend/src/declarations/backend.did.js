@@ -50,6 +50,21 @@ export const ITAsset = IDL.Record({
   'assignedDepartment' : Department,
   'location' : IDL.Text,
 });
+export const UpdateAssetParams = IDL.Record({
+  'id' : IDL.Nat,
+  'macId' : IDL.Text,
+  'status' : Status,
+  'purchaseVendor' : IDL.Text,
+  'purchaseDate' : IDL.Text,
+  'name' : IDL.Text,
+  'serviceTag' : IDL.Text,
+  'serialNumber' : IDL.Text,
+  'notes' : IDL.Text,
+  'lastServiceDate' : IDL.Text,
+  'category' : Category,
+  'assignedDepartment' : Department,
+  'location' : IDL.Text,
+});
 
 export const idlService = IDL.Service({
   'addAsset' : IDL.Func(
@@ -74,6 +89,11 @@ export const idlService = IDL.Service({
   'getAllAssets' : IDL.Func([], [IDL.Vec(ITAsset)], ['query']),
   'getAsset' : IDL.Func([IDL.Nat], [ITAsset], ['query']),
   'getAssetName' : IDL.Func([IDL.Nat], [IDL.Opt(IDL.Text)], ['query']),
+  'updateAsset' : IDL.Func(
+      [UpdateAssetParams],
+      [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+      [],
+    ),
 });
 
 export const idlInitArgs = [];
@@ -121,6 +141,21 @@ export const idlFactory = ({ IDL }) => {
     'assignedDepartment' : Department,
     'location' : IDL.Text,
   });
+  const UpdateAssetParams = IDL.Record({
+    'id' : IDL.Nat,
+    'macId' : IDL.Text,
+    'status' : Status,
+    'purchaseVendor' : IDL.Text,
+    'purchaseDate' : IDL.Text,
+    'name' : IDL.Text,
+    'serviceTag' : IDL.Text,
+    'serialNumber' : IDL.Text,
+    'notes' : IDL.Text,
+    'lastServiceDate' : IDL.Text,
+    'category' : Category,
+    'assignedDepartment' : Department,
+    'location' : IDL.Text,
+  });
   
   return IDL.Service({
     'addAsset' : IDL.Func(
@@ -145,6 +180,11 @@ export const idlFactory = ({ IDL }) => {
     'getAllAssets' : IDL.Func([], [IDL.Vec(ITAsset)], ['query']),
     'getAsset' : IDL.Func([IDL.Nat], [ITAsset], ['query']),
     'getAssetName' : IDL.Func([IDL.Nat], [IDL.Opt(IDL.Text)], ['query']),
+    'updateAsset' : IDL.Func(
+        [UpdateAssetParams],
+        [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+        [],
+      ),
   });
 };
 

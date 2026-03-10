@@ -67,3 +67,47 @@ export function useDeleteAsset() {
     },
   });
 }
+
+export function useUpdateAsset() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      id: bigint;
+      name: string;
+      category: Category;
+      serialNumber: string;
+      macId: string;
+      serviceTag: string;
+      status: Status;
+      assignedDepartment: Department;
+      location: string;
+      lastServiceDate: string;
+      purchaseDate: string;
+      purchaseVendor: string;
+      notes: string;
+    }) => {
+      if (!actor) throw new Error("Actor not ready");
+      const result = await actor.updateAsset({
+        id: data.id,
+        name: data.name,
+        category: data.category,
+        serialNumber: data.serialNumber,
+        macId: data.macId,
+        serviceTag: data.serviceTag,
+        status: data.status,
+        assignedDepartment: data.assignedDepartment,
+        location: data.location,
+        lastServiceDate: data.lastServiceDate,
+        purchaseDate: data.purchaseDate,
+        purchaseVendor: data.purchaseVendor,
+        notes: data.notes,
+      });
+      if (result.__kind__ === "err") throw new Error(result.err);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
+  });
+}
