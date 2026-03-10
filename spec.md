@@ -1,26 +1,22 @@
-# IT Asset Data Entry
+# IT Asset Registry
 
 ## Current State
-Single-page React app with all functionality in App.tsx. Backend supports full CRUD on ITAsset records.
+Three pages: Register Asset, Dashboard & Inventory. No dedicated KPI/analytics page by category.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Two-page navigation: "Register Asset" page and "Inventory & Dashboard" page
-- Top navigation bar with tabs to switch between pages
-- Dashboard page: summary stat cards (total, by department, by status), inventory table with search/filter by department and vendor, export CSV, edit and delete
-- Entry page: the existing registration form only
+- New `CategoryKPIPage` component showing KPI cards per asset category
+- Nav tab "Category KPI" in App.tsx
+- KPI cards displaying: total count, active count, in-repair count, retired count per category
+- A summary bar showing percentage share per category
 
 ### Modify
-- Restructure App.tsx to support two views using local state (no router)
-- Move form into EntryPage component
-- Move inventory/dashboard into InventoryPage component
+- App.tsx: add `kpi` page type and nav tab
 
 ### Remove
-- Nothing removed functionally
+- Nothing
 
 ## Implementation Plan
-1. Create EntryPage.tsx with the asset registration form
-2. Create InventoryPage.tsx with dashboard stat cards, search/filter, inventory table, edit dialog, delete, CSV export
-3. Update App.tsx with top navigation tabs (Register Asset / Inventory & Dashboard) and conditional rendering
-4. Apply data-ocid markers on nav tabs, form inputs, table rows, and action buttons
+1. Create `src/frontend/src/components/CategoryKPIPage.tsx` with KPI cards for each category
+2. Update `App.tsx` to include the new tab and render the new page

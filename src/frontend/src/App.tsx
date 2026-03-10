@@ -1,14 +1,38 @@
 import { Toaster } from "@/components/ui/sonner";
-import { ClipboardList, LayoutDashboard, ServerCrash } from "lucide-react";
+import {
+  BarChart3,
+  ClipboardList,
+  LayoutDashboard,
+  ServerCrash,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import { CategoryKPIPage } from "./components/CategoryKPIPage";
 import { DashboardPage } from "./components/DashboardPage";
 import { EntryPage } from "./components/EntryPage";
 
-type Page = "entry" | "dashboard";
+type Page = "entry" | "dashboard" | "kpi";
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>("entry");
+
+  const navItems: { id: Page; label: string; icon: React.ReactNode }[] = [
+    {
+      id: "entry",
+      label: "Register Asset",
+      icon: <ClipboardList className="h-3.5 w-3.5" />,
+    },
+    {
+      id: "dashboard",
+      label: "Dashboard & Inventory",
+      icon: <LayoutDashboard className="h-3.5 w-3.5" />,
+    },
+    {
+      id: "kpi",
+      label: "Category KPI",
+      icon: <BarChart3 className="h-3.5 w-3.5" />,
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -42,51 +66,31 @@ export default function App() {
 
           {/* Nav tabs */}
           <nav className="flex items-center gap-1 bg-background/60 border border-border rounded-lg p-1">
-            <button
-              type="button"
-              data-ocid="nav.entry.tab"
-              onClick={() => setActivePage("entry")}
-              className={`relative flex items-center gap-2 px-3 py-1.5 rounded-md font-mono text-xs transition-colors ${
-                activePage === "entry"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {activePage === "entry" && (
-                <motion.span
-                  layoutId="nav-pill"
-                  className="absolute inset-0 bg-card border border-border rounded-md"
-                  transition={{ type: "spring", duration: 0.35, bounce: 0.2 }}
-                />
-              )}
-              <ClipboardList className="h-3.5 w-3.5 relative z-10" />
-              <span className="relative z-10 hidden sm:inline">
-                Register Asset
-              </span>
-            </button>
-
-            <button
-              type="button"
-              data-ocid="nav.dashboard.tab"
-              onClick={() => setActivePage("dashboard")}
-              className={`relative flex items-center gap-2 px-3 py-1.5 rounded-md font-mono text-xs transition-colors ${
-                activePage === "dashboard"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {activePage === "dashboard" && (
-                <motion.span
-                  layoutId="nav-pill"
-                  className="absolute inset-0 bg-card border border-border rounded-md"
-                  transition={{ type: "spring", duration: 0.35, bounce: 0.2 }}
-                />
-              )}
-              <LayoutDashboard className="h-3.5 w-3.5 relative z-10" />
-              <span className="relative z-10 hidden sm:inline">
-                Dashboard & Inventory
-              </span>
-            </button>
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                data-ocid={`nav.${item.id}.tab`}
+                onClick={() => setActivePage(item.id)}
+                className={`relative flex items-center gap-2 px-3 py-1.5 rounded-md font-mono text-xs transition-colors ${
+                  activePage === item.id
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {activePage === item.id && (
+                  <motion.span
+                    layoutId="nav-pill"
+                    className="absolute inset-0 bg-card border border-border rounded-md"
+                    transition={{ type: "spring", duration: 0.35, bounce: 0.2 }}
+                  />
+                )}
+                <span className="relative z-10">{item.icon}</span>
+                <span className="relative z-10 hidden sm:inline">
+                  {item.label}
+                </span>
+              </button>
+            ))}
           </nav>
         </div>
       </header>
@@ -95,8 +99,10 @@ export default function App() {
       <div className="flex-1">
         {activePage === "entry" ? (
           <EntryPage onGoToDashboard={() => setActivePage("dashboard")} />
-        ) : (
+        ) : activePage === "dashboard" ? (
           <DashboardPage />
+        ) : (
+          <CategoryKPIPage />
         )}
       </div>
 
