@@ -7,70 +7,53 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface UpdateAssetParams {
+export interface Asset {
     id: bigint;
     macId: string;
-    status: Status;
-    purchaseVendor: string;
+    status: string;
     purchaseDate: string;
-    name: string;
     serviceTag: string;
-    serialNumber: string;
+    vendor: string;
     notes: string;
     lastServiceDate: string;
-    category: Category;
-    assignedDepartment: Department;
-    location: string;
-}
-export interface ITAsset {
-    id: bigint;
-    macId: string;
-    status: Status;
-    purchaseVendor: string;
-    purchaseDate: string;
-    name: string;
-    serviceTag: string;
-    serialNumber: string;
-    notes: string;
-    lastServiceDate: string;
-    category: Category;
-    assignedDepartment: Department;
-    location: string;
-}
-export enum Category {
-    Printer = "Printer",
-    Phone = "Phone",
-    Computer = "Computer",
-    Software = "Software",
-    Monitor = "Monitor",
-    Peripheral = "Peripheral",
-    Other = "Other",
-    NetworkDevice = "NetworkDevice"
-}
-export enum Department {
-    HR = "HR",
-    IT = "IT",
-    Engineering = "Engineering",
-    Accounts = "Accounts",
-    Maintenance = "Maintenance",
-    Other = "Other",
-    Biomedical = "Biomedical",
-    Finance = "Finance",
-    Administration = "Administration"
-}
-export enum Status {
-    Inactive = "Inactive",
-    Active = "Active",
-    InRepair = "InRepair",
-    Retired = "Retired"
+    category: string;
+    assetName: string;
+    department: string;
 }
 export interface backendInterface {
-    addAsset(name: string, category: Category, serialNumber: string, macId: string, serviceTag: string, status: Status, assignedDepartment: Department, location: string, lastServiceDate: string, purchaseDate: string, purchaseVendor: string, notes: string): Promise<bigint>;
-    deleteAsset(id: bigint): Promise<void>;
-    getAllAssets(): Promise<Array<ITAsset>>;
-    getAsset(id: bigint): Promise<ITAsset>;
-    getAssetName(id: bigint): Promise<string | null>;
-    updateAsset(assetParams: UpdateAssetParams): Promise<{
+    addAsset(macId: string, serviceTag: string, assetName: string, category: string, department: string, vendor: string, status: string, purchaseDate: string, lastServiceDate: string, notes: string): Promise<bigint>;
+    addOption(fieldType: string, value: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
+    deleteAsset(id: bigint): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
+    getAsset(id: bigint): Promise<Asset | null>;
+    getAssets(): Promise<Array<Asset>>;
+    getOptions(fieldType: string): Promise<Array<string>>;
+    removeOption(fieldType: string, value: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
+    updateAsset(id: bigint, macId: string, serviceTag: string, assetName: string, category: string, department: string, vendor: string, status: string, purchaseDate: string, lastServiceDate: string, notes: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
+    updateOption(fieldType: string, oldValue: string, newValue: string): Promise<{
         __kind__: "ok";
         ok: null;
     } | {

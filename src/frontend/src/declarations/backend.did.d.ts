@@ -10,67 +10,27 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export type Category = { 'Printer' : null } |
-  { 'Phone' : null } |
-  { 'Computer' : null } |
-  { 'Software' : null } |
-  { 'Monitor' : null } |
-  { 'Peripheral' : null } |
-  { 'Other' : null } |
-  { 'NetworkDevice' : null };
-export type Department = { 'HR' : null } |
-  { 'IT' : null } |
-  { 'Engineering' : null } |
-  { 'Accounts' : null } |
-  { 'Maintenance' : null } |
-  { 'Other' : null } |
-  { 'Biomedical' : null } |
-  { 'Finance' : null } |
-  { 'Administration' : null };
-export interface ITAsset {
+export interface Asset {
   'id' : bigint,
   'macId' : string,
-  'status' : Status,
-  'purchaseVendor' : string,
+  'status' : string,
   'purchaseDate' : string,
-  'name' : string,
   'serviceTag' : string,
-  'serialNumber' : string,
+  'vendor' : string,
   'notes' : string,
   'lastServiceDate' : string,
-  'category' : Category,
-  'assignedDepartment' : Department,
-  'location' : string,
-}
-export type Status = { 'Inactive' : null } |
-  { 'Active' : null } |
-  { 'InRepair' : null } |
-  { 'Retired' : null };
-export interface UpdateAssetParams {
-  'id' : bigint,
-  'macId' : string,
-  'status' : Status,
-  'purchaseVendor' : string,
-  'purchaseDate' : string,
-  'name' : string,
-  'serviceTag' : string,
-  'serialNumber' : string,
-  'notes' : string,
-  'lastServiceDate' : string,
-  'category' : Category,
-  'assignedDepartment' : Department,
-  'location' : string,
+  'category' : string,
+  'assetName' : string,
+  'department' : string,
 }
 export interface _SERVICE {
   'addAsset' : ActorMethod<
     [
       string,
-      Category,
       string,
       string,
       string,
-      Status,
-      Department,
+      string,
       string,
       string,
       string,
@@ -79,12 +39,39 @@ export interface _SERVICE {
     ],
     bigint
   >,
-  'deleteAsset' : ActorMethod<[bigint], undefined>,
-  'getAllAssets' : ActorMethod<[], Array<ITAsset>>,
-  'getAsset' : ActorMethod<[bigint], ITAsset>,
-  'getAssetName' : ActorMethod<[bigint], [] | [string]>,
+  'addOption' : ActorMethod<
+    [string, string],
+    { 'ok' : null } |
+      { 'err' : string }
+  >,
+  'deleteAsset' : ActorMethod<[bigint], { 'ok' : null } | { 'err' : string }>,
+  'getAsset' : ActorMethod<[bigint], [] | [Asset]>,
+  'getAssets' : ActorMethod<[], Array<Asset>>,
+  'getOptions' : ActorMethod<[string], Array<string>>,
+  'removeOption' : ActorMethod<
+    [string, string],
+    { 'ok' : null } |
+      { 'err' : string }
+  >,
   'updateAsset' : ActorMethod<
-    [UpdateAssetParams],
+    [
+      bigint,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+    ],
+    { 'ok' : null } |
+      { 'err' : string }
+  >,
+  'updateOption' : ActorMethod<
+    [string, string, string],
     { 'ok' : null } |
       { 'err' : string }
   >,

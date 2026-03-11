@@ -8,74 +8,28 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const Category = IDL.Variant({
-  'Printer' : IDL.Null,
-  'Phone' : IDL.Null,
-  'Computer' : IDL.Null,
-  'Software' : IDL.Null,
-  'Monitor' : IDL.Null,
-  'Peripheral' : IDL.Null,
-  'Other' : IDL.Null,
-  'NetworkDevice' : IDL.Null,
-});
-export const Status = IDL.Variant({
-  'Inactive' : IDL.Null,
-  'Active' : IDL.Null,
-  'InRepair' : IDL.Null,
-  'Retired' : IDL.Null,
-});
-export const Department = IDL.Variant({
-  'HR' : IDL.Null,
-  'IT' : IDL.Null,
-  'Engineering' : IDL.Null,
-  'Accounts' : IDL.Null,
-  'Maintenance' : IDL.Null,
-  'Other' : IDL.Null,
-  'Biomedical' : IDL.Null,
-  'Finance' : IDL.Null,
-  'Administration' : IDL.Null,
-});
-export const ITAsset = IDL.Record({
+export const Asset = IDL.Record({
   'id' : IDL.Nat,
   'macId' : IDL.Text,
-  'status' : Status,
-  'purchaseVendor' : IDL.Text,
+  'status' : IDL.Text,
   'purchaseDate' : IDL.Text,
-  'name' : IDL.Text,
   'serviceTag' : IDL.Text,
-  'serialNumber' : IDL.Text,
+  'vendor' : IDL.Text,
   'notes' : IDL.Text,
   'lastServiceDate' : IDL.Text,
-  'category' : Category,
-  'assignedDepartment' : Department,
-  'location' : IDL.Text,
-});
-export const UpdateAssetParams = IDL.Record({
-  'id' : IDL.Nat,
-  'macId' : IDL.Text,
-  'status' : Status,
-  'purchaseVendor' : IDL.Text,
-  'purchaseDate' : IDL.Text,
-  'name' : IDL.Text,
-  'serviceTag' : IDL.Text,
-  'serialNumber' : IDL.Text,
-  'notes' : IDL.Text,
-  'lastServiceDate' : IDL.Text,
-  'category' : Category,
-  'assignedDepartment' : Department,
-  'location' : IDL.Text,
+  'category' : IDL.Text,
+  'assetName' : IDL.Text,
+  'department' : IDL.Text,
 });
 
 export const idlService = IDL.Service({
   'addAsset' : IDL.Func(
       [
         IDL.Text,
-        Category,
         IDL.Text,
         IDL.Text,
         IDL.Text,
-        Status,
-        Department,
+        IDL.Text,
         IDL.Text,
         IDL.Text,
         IDL.Text,
@@ -85,12 +39,43 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
-  'deleteAsset' : IDL.Func([IDL.Nat], [], []),
-  'getAllAssets' : IDL.Func([], [IDL.Vec(ITAsset)], ['query']),
-  'getAsset' : IDL.Func([IDL.Nat], [ITAsset], ['query']),
-  'getAssetName' : IDL.Func([IDL.Nat], [IDL.Opt(IDL.Text)], ['query']),
+  'addOption' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+      [],
+    ),
+  'deleteAsset' : IDL.Func(
+      [IDL.Nat],
+      [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+      [],
+    ),
+  'getAsset' : IDL.Func([IDL.Nat], [IDL.Opt(Asset)], ['query']),
+  'getAssets' : IDL.Func([], [IDL.Vec(Asset)], ['query']),
+  'getOptions' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], ['query']),
+  'removeOption' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+      [],
+    ),
   'updateAsset' : IDL.Func(
-      [UpdateAssetParams],
+      [
+        IDL.Nat,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+      ],
+      [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+      [],
+    ),
+  'updateOption' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text],
       [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
       [],
     ),
@@ -99,74 +84,28 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  const Category = IDL.Variant({
-    'Printer' : IDL.Null,
-    'Phone' : IDL.Null,
-    'Computer' : IDL.Null,
-    'Software' : IDL.Null,
-    'Monitor' : IDL.Null,
-    'Peripheral' : IDL.Null,
-    'Other' : IDL.Null,
-    'NetworkDevice' : IDL.Null,
-  });
-  const Status = IDL.Variant({
-    'Inactive' : IDL.Null,
-    'Active' : IDL.Null,
-    'InRepair' : IDL.Null,
-    'Retired' : IDL.Null,
-  });
-  const Department = IDL.Variant({
-    'HR' : IDL.Null,
-    'IT' : IDL.Null,
-    'Engineering' : IDL.Null,
-    'Accounts' : IDL.Null,
-    'Maintenance' : IDL.Null,
-    'Other' : IDL.Null,
-    'Biomedical' : IDL.Null,
-    'Finance' : IDL.Null,
-    'Administration' : IDL.Null,
-  });
-  const ITAsset = IDL.Record({
+  const Asset = IDL.Record({
     'id' : IDL.Nat,
     'macId' : IDL.Text,
-    'status' : Status,
-    'purchaseVendor' : IDL.Text,
+    'status' : IDL.Text,
     'purchaseDate' : IDL.Text,
-    'name' : IDL.Text,
     'serviceTag' : IDL.Text,
-    'serialNumber' : IDL.Text,
+    'vendor' : IDL.Text,
     'notes' : IDL.Text,
     'lastServiceDate' : IDL.Text,
-    'category' : Category,
-    'assignedDepartment' : Department,
-    'location' : IDL.Text,
-  });
-  const UpdateAssetParams = IDL.Record({
-    'id' : IDL.Nat,
-    'macId' : IDL.Text,
-    'status' : Status,
-    'purchaseVendor' : IDL.Text,
-    'purchaseDate' : IDL.Text,
-    'name' : IDL.Text,
-    'serviceTag' : IDL.Text,
-    'serialNumber' : IDL.Text,
-    'notes' : IDL.Text,
-    'lastServiceDate' : IDL.Text,
-    'category' : Category,
-    'assignedDepartment' : Department,
-    'location' : IDL.Text,
+    'category' : IDL.Text,
+    'assetName' : IDL.Text,
+    'department' : IDL.Text,
   });
   
   return IDL.Service({
     'addAsset' : IDL.Func(
         [
           IDL.Text,
-          Category,
           IDL.Text,
           IDL.Text,
           IDL.Text,
-          Status,
-          Department,
+          IDL.Text,
           IDL.Text,
           IDL.Text,
           IDL.Text,
@@ -176,12 +115,43 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
-    'deleteAsset' : IDL.Func([IDL.Nat], [], []),
-    'getAllAssets' : IDL.Func([], [IDL.Vec(ITAsset)], ['query']),
-    'getAsset' : IDL.Func([IDL.Nat], [ITAsset], ['query']),
-    'getAssetName' : IDL.Func([IDL.Nat], [IDL.Opt(IDL.Text)], ['query']),
+    'addOption' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+        [],
+      ),
+    'deleteAsset' : IDL.Func(
+        [IDL.Nat],
+        [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+        [],
+      ),
+    'getAsset' : IDL.Func([IDL.Nat], [IDL.Opt(Asset)], ['query']),
+    'getAssets' : IDL.Func([], [IDL.Vec(Asset)], ['query']),
+    'getOptions' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], ['query']),
+    'removeOption' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+        [],
+      ),
     'updateAsset' : IDL.Func(
-        [UpdateAssetParams],
+        [
+          IDL.Nat,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+        ],
+        [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
+        [],
+      ),
+    'updateOption' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text],
         [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
         [],
       ),

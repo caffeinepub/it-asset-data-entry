@@ -1,247 +1,166 @@
-import { Skeleton } from "@/components/ui/skeleton";
-import { ServerCrash } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo } from "react";
-import { Category, Status } from "../backend";
-import { useGetAllAssets } from "../hooks/useQueries";
-import { CATEGORY_OPTIONS, getCategoryIcon } from "./shared";
+import { useGetAllAssets, useGetOptions } from "../hooks/useQueries";
 
-const STATUS_COLORS: Record<Status, string> = {
-  [Status.Active]:
-    "text-[oklch(0.72_0.18_145)] bg-[oklch(0.72_0.18_145/0.12)] border-[oklch(0.72_0.18_145/0.3)]",
-  [Status.Inactive]:
-    "text-[oklch(0.65_0.02_240)] bg-[oklch(0.55_0.02_240/0.12)] border-[oklch(0.55_0.02_240/0.3)]",
-  [Status.InRepair]:
-    "text-[oklch(0.78_0.16_70)] bg-[oklch(0.78_0.16_70/0.12)] border-[oklch(0.78_0.16_70/0.3)]",
-  [Status.Retired]:
-    "text-[oklch(0.6_0.22_25)] bg-[oklch(0.6_0.22_25/0.12)] border-[oklch(0.6_0.22_25/0.3)]",
-};
-
-const CATEGORY_ACCENT_COLORS: Record<string, string> = {
-  [Category.Computer]: "oklch(0.65_0.18_250)",
-  [Category.Monitor]: "oklch(0.65_0.15_210)",
-  [Category.Printer]: "oklch(0.65_0.14_160)",
-  [Category.NetworkDevice]: "oklch(0.65_0.18_290)",
-  [Category.Phone]: "oklch(0.72_0.18_145)",
-  [Category.Peripheral]: "oklch(0.78_0.16_70)",
-  [Category.Software]: "oklch(0.65_0.2_310)",
-  [Category.Other]: "oklch(0.6_0.05_240)",
-};
+const COLORS = [
+  "oklch(0.75 0.14 195)",
+  "oklch(0.72 0.18 145)",
+  "oklch(0.78 0.16 70)",
+  "oklch(0.60 0.22 25)",
+  "oklch(0.65 0.15 300)",
+  "oklch(0.70 0.14 250)",
+];
 
 export function CategoryKPIPage() {
-  const { data: assets = [], isLoading } = useGetAllAssets();
+  const { data: assets = [], isLoading: assetsLoading } = useGetAllAssets();
+  const { data: categories = [], isLoading: catsLoading } =
+    useGetOptions("category");
 
-  const categoryStats = useMemo(() => {
-    return CATEGORY_OPTIONS.map((cat) => {
-      const catAssets = assets.filter((a) => a.category === cat.value);
-      const total = catAssets.length;
-      const active = catAssets.filter((a) => a.status === Status.Active).length;
-      const inactive = catAssets.filter(
-        (a) => a.status === Status.Inactive,
-      ).length;
-      const inRepair = catAssets.filter(
-        (a) => a.status === Status.InRepair,
-      ).length;
-      const retired = catAssets.filter(
-        (a) => a.status === Status.Retired,
-      ).length;
-      const pct =
-        assets.length > 0 ? Math.round((total / assets.length) * 100) : 0;
-      return { ...cat, total, active, inactive, inRepair, retired, pct };
-    })
-      .filter((c) => c.total > 0)
-      .sort((a, b) => b.total - a.total);
-  }, [assets]);
+  const kpiData = useMemo(() => {
+    return categories.map((cat, i) => ({
+      name: cat,
+      count: assets.filter((a) => a.category === cat).length,
+      color: COLORS[i % COLORS.length],
+    }));
+  }, [assets, categories]);
 
-  const allZero = !isLoading && categoryStats.length === 0;
+  const total = assets.length;
+
+  const isLoading = assetsLoading || catsLoading;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        data-ocid="kpi.page"
-      >
-        <h2 className="font-display font-bold text-xl text-foreground tracking-wide">
+      <div className="mb-6">
+        <h2 className="font-display font-semibold text-xl text-foreground tracking-wide">
           Category KPI
         </h2>
-        <p className="font-mono text-xs text-muted-foreground mt-1">
-          Key performance indicators broken down by asset category
+        <p className="text-sm font-mono text-muted-foreground mt-1">
+          Asset distribution by category
         </p>
-      </motion.div>
+      </div>
 
-      {/* Summary bar */}
-      {!isLoading && assets.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1 }}
-          data-ocid="kpi.summary.section"
+      {isLoading ? (
+        <div
+          className="flex items-center justify-center py-24"
+          data-ocid="kpi.loading_state"
         >
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="font-mono text-xs text-muted-foreground uppercase tracking-wider mb-3">
-              Asset distribution by category
-            </p>
-            <div className="flex rounded-full overflow-hidden h-3 w-full gap-px">
-              {categoryStats.map((cat) => (
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {kpiData.map((kpi, i) => (
+              <motion.div
+                key={kpi.name}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.07, duration: 0.35 }}
+                className="rounded-xl border border-border bg-card p-5 flex flex-col gap-2"
+                data-ocid={`kpi.category.card.${i + 1}`}
+              >
                 <div
-                  key={cat.value}
-                  style={{
-                    width: `${cat.pct}%`,
-                    backgroundColor:
-                      CATEGORY_ACCENT_COLORS[cat.value] ??
-                      "oklch(0.6_0.05_240)",
-                  }}
-                  title={`${cat.label}: ${cat.pct}%`}
+                  className="h-1.5 rounded-full w-10"
+                  style={{ background: kpi.color }}
                 />
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
-              {categoryStats.map((cat) => (
-                <div key={cat.value} className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block w-2.5 h-2.5 rounded-sm"
-                    style={{
-                      backgroundColor:
-                        CATEGORY_ACCENT_COLORS[cat.value] ??
-                        "oklch(0.6_0.05_240)",
-                    }}
-                  />
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {cat.label}{" "}
-                    <span className="text-foreground">{cat.pct}%</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-      )}
-
-      {/* KPI Cards */}
-      <section data-ocid="kpi.cards.section">
-        {isLoading ? (
-          <div
-            data-ocid="kpi.loading_state"
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          >
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton
-                key={i}
-                className="h-48 w-full bg-muted/50 rounded-xl"
-              />
+                <p className="font-mono text-xs text-muted-foreground uppercase tracking-wider truncate">
+                  {kpi.name}
+                </p>
+                <p className="font-display text-3xl font-bold text-foreground">
+                  {kpi.count}
+                </p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  {total > 0
+                    ? `${((kpi.count / total) * 100).toFixed(1)}%`
+                    : "0%"}{" "}
+                  of total
+                </p>
+              </motion.div>
             ))}
-          </div>
-        ) : allZero ? (
-          <motion.div
-            data-ocid="kpi.empty_state"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-20 text-center"
-          >
-            <div className="w-16 h-16 rounded-xl bg-muted/30 border border-border flex items-center justify-center mb-4">
-              <ServerCrash className="h-7 w-7 text-muted-foreground" />
-            </div>
-            <p className="font-display font-medium text-foreground mb-1">
-              No assets yet
-            </p>
-            <p className="text-sm font-mono text-muted-foreground">
-              Register assets to see KPI data by category.
-            </p>
-          </motion.div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {categoryStats.map((cat, idx) => {
-              const accent =
-                CATEGORY_ACCENT_COLORS[cat.value] ?? "oklch(0.6_0.05_240)";
-              return (
-                <motion.div
-                  key={cat.value}
-                  data-ocid={`kpi.category.card.${idx + 1}`}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: idx * 0.05 }}
-                  className="bg-card border border-border rounded-xl overflow-hidden"
-                >
-                  {/* Card header */}
-                  <div
-                    className="px-5 pt-5 pb-4 border-b border-border"
-                    style={{ borderTop: `3px solid ${accent}` }}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span style={{ color: accent }}>{cat.icon}</span>
-                      <h3 className="font-display font-semibold text-sm text-foreground">
-                        {cat.label}
-                      </h3>
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <span className="font-display font-bold text-3xl text-foreground">
-                        {cat.total}
-                      </span>
-                      <span className="font-mono text-xs text-muted-foreground mb-1">
-                        assets ({cat.pct}%)
-                      </span>
-                    </div>
 
-                    {/* Mini progress bar */}
-                    <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+            {/* Total card */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: kpiData.length * 0.07, duration: 0.35 }}
+              className="rounded-xl border border-primary/30 bg-primary/10 p-5 flex flex-col gap-2"
+              data-ocid="kpi.total.card"
+            >
+              <div className="h-1.5 rounded-full w-10 bg-primary" />
+              <p className="font-mono text-xs text-primary/70 uppercase tracking-wider">
+                Total Assets
+              </p>
+              <p className="font-display text-3xl font-bold text-primary">
+                {total}
+              </p>
+              <p className="font-mono text-xs text-primary/60">
+                All categories
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Distribution Bar */}
+          {total > 0 && (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
+                Distribution
+              </p>
+              <div
+                className="flex h-8 rounded-lg overflow-hidden gap-0.5"
+                data-ocid="kpi.distribution.panel"
+              >
+                {kpiData
+                  .filter((k) => k.count > 0)
+                  .map((kpi) => (
+                    <div
+                      key={kpi.name}
+                      className="flex items-center justify-center transition-all duration-500 overflow-hidden"
+                      style={{
+                        width: `${(kpi.count / total) * 100}%`,
+                        background: kpi.color,
+                        minWidth: kpi.count > 0 ? "2px" : "0",
+                      }}
+                      title={`${kpi.name}: ${kpi.count} (${((kpi.count / total) * 100).toFixed(1)}%)`}
+                    >
+                      {kpi.count / total > 0.1 && (
+                        <span className="text-xs font-mono text-background font-semibold truncate px-1">
+                          {kpi.name}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+              </div>
+              <div className="flex flex-wrap gap-4 mt-4">
+                {kpiData
+                  .filter((k) => k.count > 0)
+                  .map((kpi) => (
+                    <div key={kpi.name} className="flex items-center gap-2">
                       <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${cat.pct}%`,
-                          backgroundColor: accent,
-                        }}
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: kpi.color }}
                       />
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {kpi.name} ({kpi.count})
+                      </span>
                     </div>
-                  </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
-                  {/* Status breakdown */}
-                  <div className="px-5 py-4 grid grid-cols-2 gap-x-4 gap-y-2">
-                    {[
-                      {
-                        label: "Active",
-                        value: cat.active,
-                        status: Status.Active,
-                      },
-                      {
-                        label: "Inactive",
-                        value: cat.inactive,
-                        status: Status.Inactive,
-                      },
-                      {
-                        label: "In Repair",
-                        value: cat.inRepair,
-                        status: Status.InRepair,
-                      },
-                      {
-                        label: "Retired",
-                        value: cat.retired,
-                        status: Status.Retired,
-                      },
-                    ].map((s) => (
-                      <div
-                        key={s.label}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {s.label}
-                        </span>
-                        <span
-                          className={`font-mono text-xs font-semibold px-1.5 py-0.5 rounded border ${STATUS_COLORS[s.status]}`}
-                        >
-                          {s.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+          {kpiData.length === 0 && (
+            <div
+              className="rounded-xl border border-border bg-card p-10 text-center"
+              data-ocid="kpi.categories.empty_state"
+            >
+              <p className="font-mono text-sm text-muted-foreground">
+                No categories configured. Add categories in Admin Settings.
+              </p>
+            </div>
+          )}
+        </>
+      )}
     </main>
   );
 }

@@ -89,70 +89,53 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface UpdateAssetParams {
+export interface Asset {
     id: bigint;
     macId: string;
-    status: Status;
-    purchaseVendor: string;
+    status: string;
     purchaseDate: string;
-    name: string;
     serviceTag: string;
-    serialNumber: string;
+    vendor: string;
     notes: string;
     lastServiceDate: string;
-    category: Category;
-    assignedDepartment: Department;
-    location: string;
-}
-export interface ITAsset {
-    id: bigint;
-    macId: string;
-    status: Status;
-    purchaseVendor: string;
-    purchaseDate: string;
-    name: string;
-    serviceTag: string;
-    serialNumber: string;
-    notes: string;
-    lastServiceDate: string;
-    category: Category;
-    assignedDepartment: Department;
-    location: string;
-}
-export enum Category {
-    Printer = "Printer",
-    Phone = "Phone",
-    Computer = "Computer",
-    Software = "Software",
-    Monitor = "Monitor",
-    Peripheral = "Peripheral",
-    Other = "Other",
-    NetworkDevice = "NetworkDevice"
-}
-export enum Department {
-    HR = "HR",
-    IT = "IT",
-    Engineering = "Engineering",
-    Accounts = "Accounts",
-    Maintenance = "Maintenance",
-    Other = "Other",
-    Biomedical = "Biomedical",
-    Finance = "Finance",
-    Administration = "Administration"
-}
-export enum Status {
-    Inactive = "Inactive",
-    Active = "Active",
-    InRepair = "InRepair",
-    Retired = "Retired"
+    category: string;
+    assetName: string;
+    department: string;
 }
 export interface backendInterface {
-    addAsset(name: string, category: Category, serialNumber: string, macId: string, serviceTag: string, status: Status, assignedDepartment: Department, location: string, lastServiceDate: string, purchaseDate: string, purchaseVendor: string, notes: string): Promise<bigint>;
-    deleteAsset(id: bigint): Promise<void>;
-    getAllAssets(): Promise<Array<ITAsset>>;
-    getAsset(id: bigint): Promise<ITAsset>;
-    getAssetName(id: bigint): Promise<string | null>;
-    updateAsset(assetParams: UpdateAssetParams): Promise<{
+    addAsset(macId: string, serviceTag: string, assetName: string, category: string, department: string, vendor: string, status: string, purchaseDate: string, lastServiceDate: string, notes: string): Promise<bigint>;
+    addOption(fieldType: string, value: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
+    deleteAsset(id: bigint): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
+    getAsset(id: bigint): Promise<Asset | null>;
+    getAssets(): Promise<Array<Asset>>;
+    getOptions(fieldType: string): Promise<Array<string>>;
+    removeOption(fieldType: string, value: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
+    updateAsset(id: bigint, macId: string, serviceTag: string, assetName: string, category: string, department: string, vendor: string, status: string, purchaseDate: string, lastServiceDate: string, notes: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
+    updateOption(fieldType: string, oldValue: string, newValue: string): Promise<{
         __kind__: "ok";
         ok: null;
     } | {
@@ -160,80 +143,24 @@ export interface backendInterface {
         err: string;
     }>;
 }
-import type { Category as _Category, Department as _Department, ITAsset as _ITAsset, Status as _Status, UpdateAssetParams as _UpdateAssetParams } from "./declarations/backend.did.d.ts";
+import type { Asset as _Asset } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
-    async addAsset(arg0: string, arg1: Category, arg2: string, arg3: string, arg4: string, arg5: Status, arg6: Department, arg7: string, arg8: string, arg9: string, arg10: string, arg11: string): Promise<bigint> {
+    async addAsset(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string, arg5: string, arg6: string, arg7: string, arg8: string, arg9: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.addAsset(arg0, to_candid_Category_n1(this._uploadFile, this._downloadFile, arg1), arg2, arg3, arg4, to_candid_Status_n3(this._uploadFile, this._downloadFile, arg5), to_candid_Department_n5(this._uploadFile, this._downloadFile, arg6), arg7, arg8, arg9, arg10, arg11);
+                const result = await this.actor.addAsset(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.addAsset(arg0, to_candid_Category_n1(this._uploadFile, this._downloadFile, arg1), arg2, arg3, arg4, to_candid_Status_n3(this._uploadFile, this._downloadFile, arg5), to_candid_Department_n5(this._uploadFile, this._downloadFile, arg6), arg7, arg8, arg9, arg10, arg11);
+            const result = await this.actor.addAsset(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
             return result;
         }
     }
-    async deleteAsset(arg0: bigint): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.deleteAsset(arg0);
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.deleteAsset(arg0);
-            return result;
-        }
-    }
-    async getAllAssets(): Promise<Array<ITAsset>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getAllAssets();
-                return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getAllAssets();
-            return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getAsset(arg0: bigint): Promise<ITAsset> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getAsset(arg0);
-                return from_candid_ITAsset_n8(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getAsset(arg0);
-            return from_candid_ITAsset_n8(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getAssetName(arg0: bigint): Promise<string | null> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getAssetName(arg0);
-                return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getAssetName(arg0);
-            return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async updateAsset(arg0: UpdateAssetParams): Promise<{
+    async addOption(arg0: string, arg1: string): Promise<{
         __kind__: "ok";
         ok: null;
     } | {
@@ -242,130 +169,144 @@ export class Backend implements backendInterface {
     }> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateAsset(to_candid_UpdateAssetParams_n17(this._uploadFile, this._downloadFile, arg0));
-                return from_candid_variant_n19(this._uploadFile, this._downloadFile, result);
+                const result = await this.actor.addOption(arg0, arg1);
+                return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateAsset(to_candid_UpdateAssetParams_n17(this._uploadFile, this._downloadFile, arg0));
-            return from_candid_variant_n19(this._uploadFile, this._downloadFile, result);
+            const result = await this.actor.addOption(arg0, arg1);
+            return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async deleteAsset(arg0: bigint): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteAsset(arg0);
+                return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteAsset(arg0);
+            return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getAsset(arg0: bigint): Promise<Asset | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAsset(arg0);
+                return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAsset(arg0);
+            return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getAssets(): Promise<Array<Asset>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAssets();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAssets();
+            return result;
+        }
+    }
+    async getOptions(arg0: string): Promise<Array<string>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getOptions(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getOptions(arg0);
+            return result;
+        }
+    }
+    async removeOption(arg0: string, arg1: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.removeOption(arg0, arg1);
+                return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.removeOption(arg0, arg1);
+            return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async updateAsset(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: string, arg5: string, arg6: string, arg7: string, arg8: string, arg9: string, arg10: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateAsset(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+                return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateAsset(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+            return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async updateOption(arg0: string, arg1: string, arg2: string): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateOption(arg0, arg1, arg2);
+                return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateOption(arg0, arg1, arg2);
+            return from_candid_variant_n1(this._uploadFile, this._downloadFile, result);
         }
     }
 }
-function from_candid_Category_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Category): Category {
-    return from_candid_variant_n13(_uploadFile, _downloadFile, value);
-}
-function from_candid_Department_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Department): Department {
-    return from_candid_variant_n15(_uploadFile, _downloadFile, value);
-}
-function from_candid_ITAsset_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ITAsset): ITAsset {
-    return from_candid_record_n9(_uploadFile, _downloadFile, value);
-}
-function from_candid_Status_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Status): Status {
-    return from_candid_variant_n11(_uploadFile, _downloadFile, value);
-}
-function from_candid_opt_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+function from_candid_opt_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Asset]): Asset | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_record_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    id: bigint;
-    macId: string;
-    status: _Status;
-    purchaseVendor: string;
-    purchaseDate: string;
-    name: string;
-    serviceTag: string;
-    serialNumber: string;
-    notes: string;
-    lastServiceDate: string;
-    category: _Category;
-    assignedDepartment: _Department;
-    location: string;
-}): {
-    id: bigint;
-    macId: string;
-    status: Status;
-    purchaseVendor: string;
-    purchaseDate: string;
-    name: string;
-    serviceTag: string;
-    serialNumber: string;
-    notes: string;
-    lastServiceDate: string;
-    category: Category;
-    assignedDepartment: Department;
-    location: string;
-} {
-    return {
-        id: value.id,
-        macId: value.macId,
-        status: from_candid_Status_n10(_uploadFile, _downloadFile, value.status),
-        purchaseVendor: value.purchaseVendor,
-        purchaseDate: value.purchaseDate,
-        name: value.name,
-        serviceTag: value.serviceTag,
-        serialNumber: value.serialNumber,
-        notes: value.notes,
-        lastServiceDate: value.lastServiceDate,
-        category: from_candid_Category_n12(_uploadFile, _downloadFile, value.category),
-        assignedDepartment: from_candid_Department_n14(_uploadFile, _downloadFile, value.assignedDepartment),
-        location: value.location
-    };
-}
-function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    Inactive: null;
-} | {
-    Active: null;
-} | {
-    InRepair: null;
-} | {
-    Retired: null;
-}): Status {
-    return "Inactive" in value ? Status.Inactive : "Active" in value ? Status.Active : "InRepair" in value ? Status.InRepair : "Retired" in value ? Status.Retired : value;
-}
-function from_candid_variant_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    Printer: null;
-} | {
-    Phone: null;
-} | {
-    Computer: null;
-} | {
-    Software: null;
-} | {
-    Monitor: null;
-} | {
-    Peripheral: null;
-} | {
-    Other: null;
-} | {
-    NetworkDevice: null;
-}): Category {
-    return "Printer" in value ? Category.Printer : "Phone" in value ? Category.Phone : "Computer" in value ? Category.Computer : "Software" in value ? Category.Software : "Monitor" in value ? Category.Monitor : "Peripheral" in value ? Category.Peripheral : "Other" in value ? Category.Other : "NetworkDevice" in value ? Category.NetworkDevice : value;
-}
-function from_candid_variant_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    HR: null;
-} | {
-    IT: null;
-} | {
-    Engineering: null;
-} | {
-    Accounts: null;
-} | {
-    Maintenance: null;
-} | {
-    Other: null;
-} | {
-    Biomedical: null;
-} | {
-    Finance: null;
-} | {
-    Administration: null;
-}): Department {
-    return "HR" in value ? Department.HR : "IT" in value ? Department.IT : "Engineering" in value ? Department.Engineering : "Accounts" in value ? Department.Accounts : "Maintenance" in value ? Department.Maintenance : "Other" in value ? Department.Other : "Biomedical" in value ? Department.Biomedical : "Finance" in value ? Department.Finance : "Administration" in value ? Department.Administration : value;
-}
-function from_candid_variant_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     ok: null;
 } | {
     err: string;
@@ -382,159 +323,6 @@ function from_candid_variant_n19(_uploadFile: (file: ExternalBlob) => Promise<Ui
     } : "err" in value ? {
         __kind__: "err",
         err: value.err
-    } : value;
-}
-function from_candid_vec_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_ITAsset>): Array<ITAsset> {
-    return value.map((x)=>from_candid_ITAsset_n8(_uploadFile, _downloadFile, x));
-}
-function to_candid_Category_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Category): _Category {
-    return to_candid_variant_n2(_uploadFile, _downloadFile, value);
-}
-function to_candid_Department_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Department): _Department {
-    return to_candid_variant_n6(_uploadFile, _downloadFile, value);
-}
-function to_candid_Status_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Status): _Status {
-    return to_candid_variant_n4(_uploadFile, _downloadFile, value);
-}
-function to_candid_UpdateAssetParams_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UpdateAssetParams): _UpdateAssetParams {
-    return to_candid_record_n18(_uploadFile, _downloadFile, value);
-}
-function to_candid_record_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    id: bigint;
-    macId: string;
-    status: Status;
-    purchaseVendor: string;
-    purchaseDate: string;
-    name: string;
-    serviceTag: string;
-    serialNumber: string;
-    notes: string;
-    lastServiceDate: string;
-    category: Category;
-    assignedDepartment: Department;
-    location: string;
-}): {
-    id: bigint;
-    macId: string;
-    status: _Status;
-    purchaseVendor: string;
-    purchaseDate: string;
-    name: string;
-    serviceTag: string;
-    serialNumber: string;
-    notes: string;
-    lastServiceDate: string;
-    category: _Category;
-    assignedDepartment: _Department;
-    location: string;
-} {
-    return {
-        id: value.id,
-        macId: value.macId,
-        status: to_candid_Status_n3(_uploadFile, _downloadFile, value.status),
-        purchaseVendor: value.purchaseVendor,
-        purchaseDate: value.purchaseDate,
-        name: value.name,
-        serviceTag: value.serviceTag,
-        serialNumber: value.serialNumber,
-        notes: value.notes,
-        lastServiceDate: value.lastServiceDate,
-        category: to_candid_Category_n1(_uploadFile, _downloadFile, value.category),
-        assignedDepartment: to_candid_Department_n5(_uploadFile, _downloadFile, value.assignedDepartment),
-        location: value.location
-    };
-}
-function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Category): {
-    Printer: null;
-} | {
-    Phone: null;
-} | {
-    Computer: null;
-} | {
-    Software: null;
-} | {
-    Monitor: null;
-} | {
-    Peripheral: null;
-} | {
-    Other: null;
-} | {
-    NetworkDevice: null;
-} {
-    return value == Category.Printer ? {
-        Printer: null
-    } : value == Category.Phone ? {
-        Phone: null
-    } : value == Category.Computer ? {
-        Computer: null
-    } : value == Category.Software ? {
-        Software: null
-    } : value == Category.Monitor ? {
-        Monitor: null
-    } : value == Category.Peripheral ? {
-        Peripheral: null
-    } : value == Category.Other ? {
-        Other: null
-    } : value == Category.NetworkDevice ? {
-        NetworkDevice: null
-    } : value;
-}
-function to_candid_variant_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Status): {
-    Inactive: null;
-} | {
-    Active: null;
-} | {
-    InRepair: null;
-} | {
-    Retired: null;
-} {
-    return value == Status.Inactive ? {
-        Inactive: null
-    } : value == Status.Active ? {
-        Active: null
-    } : value == Status.InRepair ? {
-        InRepair: null
-    } : value == Status.Retired ? {
-        Retired: null
-    } : value;
-}
-function to_candid_variant_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Department): {
-    HR: null;
-} | {
-    IT: null;
-} | {
-    Engineering: null;
-} | {
-    Accounts: null;
-} | {
-    Maintenance: null;
-} | {
-    Other: null;
-} | {
-    Biomedical: null;
-} | {
-    Finance: null;
-} | {
-    Administration: null;
-} {
-    return value == Department.HR ? {
-        HR: null
-    } : value == Department.IT ? {
-        IT: null
-    } : value == Department.Engineering ? {
-        Engineering: null
-    } : value == Department.Accounts ? {
-        Accounts: null
-    } : value == Department.Maintenance ? {
-        Maintenance: null
-    } : value == Department.Other ? {
-        Other: null
-    } : value == Department.Biomedical ? {
-        Biomedical: null
-    } : value == Department.Finance ? {
-        Finance: null
-    } : value == Department.Administration ? {
-        Administration: null
     } : value;
 }
 export interface CreateActorOptions {

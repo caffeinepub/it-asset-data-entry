@@ -1,87 +1,48 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
+import Text "mo:core/Text";
 
 module {
-  type OldITAsset = {
+  type Asset = {
     id : Nat;
-    name : Text;
-    category : Category;
-    serialNumber : Text;
-    status : Status;
-    location : Text;
+    macId : Text;
+    serviceTag : Text;
+    assetName : Text;
+    category : Text;
+    department : Text;
+    vendor : Text;
+    status : Text;
+    purchaseDate : Text;
+    lastServiceDate : Text;
     notes : Text;
-  };
-
-  type Category = {
-    #Computer;
-    #Monitor;
-    #Printer;
-    #NetworkDevice;
-    #Phone;
-    #Peripheral;
-    #Software;
-    #Other;
-  };
-
-  type Status = {
-    #Active;
-    #Inactive;
-    #InRepair;
-    #Retired;
   };
 
   type OldActor = {
-    assets : Map.Map<Nat, OldITAsset>;
+    assets : Map.Map<Nat, Asset>;
+    categories : Map.Map<Text, ()>;
+    departments : Map.Map<Text, ()>;
+    vendors : Map.Map<Text, ()>;
+    statuses : Map.Map<Text, ()>;
     nextId : Nat;
   };
 
-  type NewITAsset = {
-    id : Nat;
-    name : Text;
-    category : Category;
-    serialNumber : Text;
-    macId : Text;
-    serviceTag : Text;
-    status : Status;
-    assignedDepartment : Department;
-    location : Text;
-    lastServiceDate : Text;
-    purchaseDate : Text;
-    purchaseVendor : Text;
-    notes : Text;
-  };
-
-  type Department = {
-    #IT;
-    #Biomedical;
-    #Engineering;
-    #Accounts;
-    #HR;
-    #Finance;
-    #Administration;
-    #Maintenance;
-    #Other;
-  };
-
   type NewActor = {
-    assets : Map.Map<Nat, NewITAsset>;
+    assets : [Asset];
+    categories : [Text];
+    departments : [Text];
+    vendors : [Text];
+    statuses : [Text];
     nextId : Nat;
   };
 
   public func run(old : OldActor) : NewActor {
-    let newAssets = old.assets.map<Nat, OldITAsset, NewITAsset>(
-      func(_id, oldAsset) {
-        {
-          oldAsset with
-          macId = " ";
-          serviceTag = " ";
-          assignedDepartment = #Other;
-          lastServiceDate = " ";
-          purchaseDate = " ";
-          purchaseVendor = " ";
-        };
-      }
-    );
-    { assets = newAssets; nextId = old.nextId };
+    {
+      assets = old.assets.values().toArray();
+      categories = old.categories.keys().toArray();
+      departments = old.departments.keys().toArray();
+      vendors = old.vendors.keys().toArray();
+      statuses = old.statuses.keys().toArray();
+      nextId = old.nextId;
+    };
   };
 };

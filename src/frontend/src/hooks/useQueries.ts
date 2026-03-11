@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Category, Department, Status } from "../backend";
 import { useActor } from "./useActor";
+
+// ─── Assets ───────────────────────────────────────────────────────────────────
 
 export function useGetAllAssets() {
   const { actor, isFetching } = useActor();
@@ -8,7 +9,7 @@ export function useGetAllAssets() {
     queryKey: ["assets"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllAssets();
+      return actor.getAssets();
     },
     enabled: !!actor && !isFetching,
   });
@@ -19,48 +20,30 @@ export function useAddAsset() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: {
-      name: string;
-      category: Category;
-      serialNumber: string;
       macId: string;
       serviceTag: string;
-      status: Status;
-      assignedDepartment: Department;
-      location: string;
-      lastServiceDate: string;
+      assetName: string;
+      category: string;
+      department: string;
+      vendor: string;
+      status: string;
       purchaseDate: string;
-      purchaseVendor: string;
+      lastServiceDate: string;
       notes: string;
     }) => {
       if (!actor) throw new Error("Actor not ready");
       return actor.addAsset(
-        data.name,
-        data.category,
-        data.serialNumber,
         data.macId,
         data.serviceTag,
+        data.assetName,
+        data.category,
+        data.department,
+        data.vendor,
         data.status,
-        data.assignedDepartment,
-        data.location,
-        data.lastServiceDate,
         data.purchaseDate,
-        data.purchaseVendor,
+        data.lastServiceDate,
         data.notes,
       );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assets"] });
-    },
-  });
-}
-
-export function useDeleteAsset() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("Actor not ready");
-      return actor.deleteAsset(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assets"] });
@@ -74,40 +57,134 @@ export function useUpdateAsset() {
   return useMutation({
     mutationFn: async (data: {
       id: bigint;
-      name: string;
-      category: Category;
-      serialNumber: string;
       macId: string;
       serviceTag: string;
-      status: Status;
-      assignedDepartment: Department;
-      location: string;
-      lastServiceDate: string;
+      assetName: string;
+      category: string;
+      department: string;
+      vendor: string;
+      status: string;
       purchaseDate: string;
-      purchaseVendor: string;
+      lastServiceDate: string;
       notes: string;
     }) => {
       if (!actor) throw new Error("Actor not ready");
-      const result = await actor.updateAsset({
-        id: data.id,
-        name: data.name,
-        category: data.category,
-        serialNumber: data.serialNumber,
-        macId: data.macId,
-        serviceTag: data.serviceTag,
-        status: data.status,
-        assignedDepartment: data.assignedDepartment,
-        location: data.location,
-        lastServiceDate: data.lastServiceDate,
-        purchaseDate: data.purchaseDate,
-        purchaseVendor: data.purchaseVendor,
-        notes: data.notes,
-      });
-      if (result.__kind__ === "err") throw new Error(result.err);
+      const result = await actor.updateAsset(
+        data.id,
+        data.macId,
+        data.serviceTag,
+        data.assetName,
+        data.category,
+        data.department,
+        data.vendor,
+        data.status,
+        data.purchaseDate,
+        data.lastServiceDate,
+        data.notes,
+      );
+      if ("err" in result) throw new Error(result.err);
       return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
+  });
+}
+
+export function useDeleteAsset() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Actor not ready");
+      const result = await actor.deleteAsset(id);
+      if ("err" in result) throw new Error(result.err);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
+  });
+}
+
+// ─── Options ──────────────────────────────────────────────────────────────────
+
+export function useGetOptions(fieldType: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["options", fieldType],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getOptions(fieldType);
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddOption() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      fieldType,
+      value,
+    }: { fieldType: string; value: string }) => {
+      if (!actor) throw new Error("Actor not ready");
+      const result = await actor.addOption(fieldType, value);
+      if ("err" in result) throw new Error(result.err);
+      return result;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["options", variables.fieldType],
+      });
+    },
+  });
+}
+
+export function useRemoveOption() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      fieldType,
+      value,
+    }: { fieldType: string; value: string }) => {
+      if (!actor) throw new Error("Actor not ready");
+      const result = await actor.removeOption(fieldType, value);
+      if ("err" in result) throw new Error(result.err);
+      return result;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["options", variables.fieldType],
+      });
+    },
+  });
+}
+
+export function useUpdateOption() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      fieldType,
+      oldValue,
+      newValue,
+    }: {
+      fieldType: string;
+      oldValue: string;
+      newValue: string;
+    }) => {
+      if (!actor) throw new Error("Actor not ready");
+      const result = await actor.updateOption(fieldType, oldValue, newValue);
+      if ("err" in result) throw new Error(result.err);
+      return result;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["options", variables.fieldType],
+      });
     },
   });
 }

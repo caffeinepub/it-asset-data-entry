@@ -1,160 +1,216 @@
 import Nat "mo:core/Nat";
-import Map "mo:core/Map";
-import Iter "mo:core/Iter";
-import Runtime "mo:core/Runtime";
+import Array "mo:core/Array";
+import Text "mo:core/Text";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
-  type ITAsset = {
+  type Asset = {
     id : Nat;
-    name : Text;
-    category : Category;
-    serialNumber : Text;
     macId : Text;
     serviceTag : Text;
-    status : Status;
-    assignedDepartment : Department;
-    location : Text;
-    lastServiceDate : Text;
+    assetName : Text;
+    category : Text;
+    department : Text;
+    vendor : Text;
+    status : Text;
     purchaseDate : Text;
-    purchaseVendor : Text;
+    lastServiceDate : Text;
     notes : Text;
   };
 
-  type UpdateAssetParams = {
-    id : Nat;
-    name : Text;
-    category : Category;
-    serialNumber : Text;
-    macId : Text;
-    serviceTag : Text;
-    status : Status;
-    assignedDepartment : Department;
-    location : Text;
-    lastServiceDate : Text;
-    purchaseDate : Text;
-    purchaseVendor : Text;
-    notes : Text;
-  };
+  stable var assets : [Asset] = [];
+  stable var nextId = 1;
 
-  type Category = {
-    #Computer;
-    #Monitor;
-    #Printer;
-    #NetworkDevice;
-    #Phone;
-    #Peripheral;
-    #Software;
-    #Other;
-  };
+  stable var categories : [Text] = ["Laptop", "Desktop", "Monitor"];
+  stable var departments : [Text] = ["IT", "Finance", "HR"];
+  stable var vendors : [Text] = ["Dell", "HP", "Lenovo"];
+  stable var statuses : [Text] = ["Active", "Inactive", "Retired"];
 
-  type Status = {
-    #Active;
-    #Inactive;
-    #InRepair;
-    #Retired;
-  };
-
-  type Department = {
-    #IT;
-    #Biomedical;
-    #Engineering;
-    #Accounts;
-    #HR;
-    #Finance;
-    #Administration;
-    #Maintenance;
-    #Other;
-  };
-
-  let assets = Map.empty<Nat, ITAsset>();
-  var nextId = 1;
-
-  public func addAsset(
-    name : Text,
-    category : Category,
-    serialNumber : Text,
+  public shared ({ caller }) func addAsset(
     macId : Text,
     serviceTag : Text,
-    status : Status,
-    assignedDepartment : Department,
-    location : Text,
-    lastServiceDate : Text,
+    assetName : Text,
+    category : Text,
+    department : Text,
+    vendor : Text,
+    status : Text,
     purchaseDate : Text,
-    purchaseVendor : Text,
+    lastServiceDate : Text,
     notes : Text,
   ) : async Nat {
-    let asset : ITAsset = {
-      id = nextId;
-      name;
-      category;
-      serialNumber;
+    let id = nextId;
+    nextId += 1;
+
+    let asset = {
+      id;
       macId;
       serviceTag;
+      assetName;
+      category;
+      department;
+      vendor;
       status;
-      assignedDepartment;
-      location;
-      lastServiceDate;
       purchaseDate;
-      purchaseVendor;
+      lastServiceDate;
       notes;
     };
-    assets.add(nextId, asset);
-    nextId += 1;
-    asset.id;
+
+    assets := assets.concat([asset]);
+    id;
   };
 
-  public func updateAsset(assetParams : UpdateAssetParams) : async {
-    #ok : ();
-    #err : Text;
-  } {
-    switch (assets.get(assetParams.id)) {
+  public shared ({ caller }) func updateAsset(
+    id : Nat,
+    macId : Text,
+    serviceTag : Text,
+    assetName : Text,
+    category : Text,
+    department : Text,
+    vendor : Text,
+    status : Text,
+    purchaseDate : Text,
+    lastServiceDate : Text,
+    notes : Text,
+  ) : async { #ok : (); #err : Text } {
+    let assetsCopy = assets;
+    var found = false;
+    let updatedAssets = assetsCopy.map(
+      func(asset) {
+        if (asset.id == id) {
+          found := true;
+          {
+            id;
+            macId;
+            serviceTag;
+            assetName;
+            category;
+            department;
+            vendor;
+            status;
+            purchaseDate;
+            lastServiceDate;
+            notes;
+          };
+        } else { asset };
+      }
+    );
+    assets := updatedAssets;
+    if (found) { #ok(()) } else {
+      #err("Asset not found");
+    };
+  };
+
+  public query ({ caller }) func getAsset(id : Nat) : async ?Asset {
+    assets.find(func(asset) { asset.id == id });
+  };
+
+  public query ({ caller }) func getAssets() : async [Asset] {
+    assets;
+  };
+
+  public shared ({ caller }) func deleteAsset(id : Nat) : async { #ok : (); #err : Text } {
+    switch (assets.find(func(asset) { asset.id == id })) {
       case (null) { #err("Asset not found") };
       case (?_) {
-        let updatedAsset : ITAsset = {
-          id = assetParams.id;
-          name = assetParams.name;
-          category = assetParams.category;
-          serialNumber = assetParams.serialNumber;
-          macId = assetParams.macId;
-          serviceTag = assetParams.serviceTag;
-          status = assetParams.status;
-          assignedDepartment = assetParams.assignedDepartment;
-          location = assetParams.location;
-          lastServiceDate = assetParams.lastServiceDate;
-          purchaseDate = assetParams.purchaseDate;
-          purchaseVendor = assetParams.purchaseVendor;
-          notes = assetParams.notes;
-        };
-        assets.add(assetParams.id, updatedAsset);
+        assets := assets.filter(
+          func(asset) {
+            asset.id != id;
+          }
+        );
         #ok(());
       };
     };
   };
 
-  public query func getAsset(id : Nat) : async ITAsset {
-    switch (assets.get(id)) {
-      case (null) { Runtime.trap("Asset not found") };
-      case (?asset) { asset };
+  public query ({ caller }) func getOptions(fieldType : Text) : async [Text] {
+    switch (fieldType) {
+      case ("category") { categories };
+      case ("department") { departments };
+      case ("vendor") { vendors };
+      case ("status") { statuses };
+      case (_) { [] };
     };
   };
 
-  public query func getAllAssets() : async [ITAsset] {
-    assets.values().toArray();
+  public shared ({ caller }) func addOption(fieldType : Text, value : Text) : async { #ok : (); #err : Text } {
+    let array = switch (fieldType) {
+      case ("category") { categories };
+      case ("department") { departments };
+      case ("vendor") { vendors };
+      case ("status") { statuses };
+      case (_) { return #err("Invalid field type") };
+    };
+
+    if (array.find(func(item) { item == value }) != null) {
+      return #err("Option already exists");
+    };
+
+    switch (fieldType) {
+      case ("category") { categories := array.concat([value]) };
+      case ("department") { departments := array.concat([value]) };
+      case ("vendor") { vendors := array.concat([value]) };
+      case ("status") { statuses := array.concat([value]) };
+      case (_) {};
+    };
+    #ok(());
   };
 
-  public query func getAssetName(id : Nat) : async ?Text {
-    switch (assets.get(id)) {
-      case (null) { null };
-      case (?asset) { ?asset.name };
+  public shared ({ caller }) func removeOption(fieldType : Text, value : Text) : async { #ok : (); #err : Text } {
+    let array = switch (fieldType) {
+      case ("category") { categories };
+      case ("department") { departments };
+      case ("vendor") { vendors };
+      case ("status") { statuses };
+      case (_) { return #err("Invalid field type") };
     };
+
+    if (array.find(func(item) { item == value }) == null) {
+      return #err("Option does not exist");
+    };
+
+    switch (fieldType) {
+      case ("category") { categories := array.filter(func(item) { item != value }) };
+      case ("department") { departments := array.filter(func(item) { item != value }) };
+      case ("vendor") { vendors := array.filter(func(item) { item != value }) };
+      case ("status") { statuses := array.filter(func(item) { item != value }) };
+      case (_) {};
+    };
+    #ok(());
   };
 
-  public func deleteAsset(id : Nat) : async () {
-    if (not assets.containsKey(id)) {
-      Runtime.trap("Asset not found");
+  public shared ({ caller }) func updateOption(fieldType : Text, oldValue : Text, newValue : Text) : async { #ok : (); #err : Text } {
+    let array = switch (fieldType) {
+      case ("category") { categories };
+      case ("department") { departments };
+      case ("vendor") { vendors };
+      case ("status") { statuses };
+      case (_) { return #err("Invalid field type") };
     };
-    assets.remove(id);
+
+    if (array.find(func(item) { item == oldValue }) == null) {
+      return #err("Old value does not exist");
+    };
+
+    if (array.find(func(item) { item == newValue }) != null) {
+      return #err("New value already exists");
+    };
+
+    switch (fieldType) {
+      case ("category") {
+        categories := array.map(func(item) { if (item == oldValue) { newValue } else { item } });
+      };
+      case ("department") {
+        departments := array.map(func(item) { if (item == oldValue) { newValue } else { item } });
+      };
+      case ("vendor") {
+        vendors := array.map(func(item) { if (item == oldValue) { newValue } else { item } });
+      };
+      case ("status") {
+        statuses := array.map(func(item) { if (item == oldValue) { newValue } else { item } });
+      };
+      case (_) {};
+    };
+    #ok(());
   };
 };

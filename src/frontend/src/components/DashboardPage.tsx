@@ -1,17 +1,13 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -19,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -28,505 +23,558 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Activity,
-  Building2,
-  Download,
-  Package,
-  Pencil,
-  Search,
-  ServerCrash,
-  Trash2,
-  Wrench,
-} from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { Textarea } from "@/components/ui/textarea";
+import { Download, Edit2, Loader2, PackageSearch, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { Category, Department, Status } from "../backend";
-import type { ITAsset } from "../backend";
-import { useDeleteAsset, useGetAllAssets } from "../hooks/useQueries";
-import { EditAssetDialog } from "./EditAssetDialog";
 import {
-  DEPARTMENT_OPTIONS,
-  StatusBadge,
-  VENDOR_OPTIONS,
-  getCategoryIcon,
-} from "./shared";
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { toast } from "sonner";
+import type { Asset } from "../backend.d";
+import {
+  useDeleteAsset,
+  useGetAllAssets,
+  useGetOptions,
+  useUpdateAsset,
+} from "../hooks/useQueries";
 
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-  delay,
-}: {
-  label: string;
-  value: number | string;
-  icon: React.ReactNode;
-  color: string;
-  delay: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay, ease: "easeOut" }}
-      className="bg-card border border-border rounded-xl p-5 flex items-start gap-4"
-    >
-      <div
-        className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${color}`}
-      >
-        {icon}
-      </div>
-      <div>
-        <p className="font-mono text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
-          {label}
-        </p>
-        <p className="font-display font-bold text-2xl text-foreground">
-          {value}
-        </p>
-      </div>
-    </motion.div>
-  );
-}
-
-function exportToCSV(assets: ITAsset[]) {
-  const headers = [
-    "ID",
-    "Name",
-    "Category",
-    "Serial Number",
-    "MAC ID",
-    "Service Tag",
-    "Status",
-    "Department",
-    "Location",
-    "Last Service Date",
-    "Purchase Date",
-    "Purchase Vendor",
-    "Notes",
-  ];
-  const rows = assets.map((a) => [
-    String(a.id),
-    a.name,
-    a.category,
-    a.serialNumber,
-    a.macId,
-    a.serviceTag,
-    a.status,
-    a.assignedDepartment,
-    a.location,
-    a.lastServiceDate,
-    a.purchaseDate,
-    a.purchaseVendor,
-    `"${a.notes.replace(/"/g, '""')}"`,
-  ]);
-  const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `it-assets-${new Date().toISOString().split("T")[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast.success("CSV exported successfully.");
-}
+const CHART_COLORS = [
+  "oklch(0.75 0.14 195)",
+  "oklch(0.72 0.18 145)",
+  "oklch(0.78 0.16 70)",
+  "oklch(0.60 0.22 25)",
+  "oklch(0.65 0.15 300)",
+  "oklch(0.70 0.14 250)",
+];
 
 export function DashboardPage() {
   const { data: assets = [], isLoading } = useGetAllAssets();
+  const { data: categories = [] } = useGetOptions("category");
+  const { data: departments = [] } = useGetOptions("department");
+  const { data: vendors = [] } = useGetOptions("vendor");
+  const { data: statuses = [] } = useGetOptions("status");
+  const updateAsset = useUpdateAsset();
   const deleteAsset = useDeleteAsset();
-  const [editingAsset, setEditingAsset] = useState<ITAsset | null>(null);
-  const [search, setSearch] = useState("");
-  const [deptFilter, setDeptFilter] = useState<string>("all");
-  const [vendorFilter, setVendorFilter] = useState<string>("all");
+
+  const [filterDept, setFilterDept] = useState("");
+  const [filterVendor, setFilterVendor] = useState("");
+  const [editAsset, setEditAsset] = useState<Asset | null>(null);
+  const [editForm, setEditForm] = useState<Omit<Asset, "id">>({
+    macId: "",
+    serviceTag: "",
+    assetName: "",
+    category: "",
+    department: "",
+    vendor: "",
+    status: "",
+    purchaseDate: "",
+    lastServiceDate: "",
+    notes: "",
+  });
+  const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
 
   const filtered = useMemo(() => {
     return assets.filter((a) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !q ||
-        a.name.toLowerCase().includes(q) ||
-        a.serialNumber.toLowerCase().includes(q) ||
-        a.macId.toLowerCase().includes(q);
-      const matchDept =
-        deptFilter === "all" || a.assignedDepartment === deptFilter;
-      const matchVendor =
-        vendorFilter === "all" || a.purchaseVendor === vendorFilter;
-      return matchSearch && matchDept && matchVendor;
+      const d = a.department.toLowerCase();
+      const v = a.vendor.toLowerCase();
+      return (
+        d.includes(filterDept.toLowerCase()) &&
+        v.includes(filterVendor.toLowerCase())
+      );
     });
-  }, [assets, search, deptFilter, vendorFilter]);
+  }, [assets, filterDept, filterVendor]);
 
-  const totalActive = assets.filter((a) => a.status === Status.Active).length;
-  const totalRepair = assets.filter((a) => a.status === Status.InRepair).length;
+  const categoryChart = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of assets) counts[a.category] = (counts[a.category] || 0) + 1;
+    return Object.entries(counts).map(([name, count]) => ({ name, count }));
+  }, [assets]);
 
-  // Top departments
-  const deptCounts = assets.reduce<Record<string, number>>((acc, a) => {
-    if (a.assignedDepartment)
-      acc[a.assignedDepartment] = (acc[a.assignedDepartment] || 0) + 1;
-    return acc;
-  }, {});
-  const topDept = Object.entries(deptCounts).sort((a, b) => b[1] - a[1])[0];
+  const statusChart = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of assets) counts[a.status] = (counts[a.status] || 0) + 1;
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [assets]);
 
-  const handleDelete = async (id: bigint) => {
+  const openEdit = (asset: Asset) => {
+    setEditAsset(asset);
+    setEditForm({
+      macId: asset.macId,
+      serviceTag: asset.serviceTag,
+      assetName: asset.assetName,
+      category: asset.category,
+      department: asset.department,
+      vendor: asset.vendor,
+      status: asset.status,
+      purchaseDate: asset.purchaseDate,
+      lastServiceDate: asset.lastServiceDate,
+      notes: asset.notes,
+    });
+  };
+
+  const handleUpdate = async () => {
+    if (!editAsset) return;
     try {
-      await deleteAsset.mutateAsync(id);
-      toast.success("Asset removed from inventory.");
-    } catch {
-      toast.error("Failed to delete asset.");
+      await updateAsset.mutateAsync({ id: editAsset.id, ...editForm });
+      toast.success("Asset updated.");
+      setEditAsset(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed.");
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteAsset.mutateAsync(deleteTarget.id);
+      toast.success(`"${deleteTarget.assetName}" deleted.`);
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed.");
+    }
+  };
+
+  const exportCSV = () => {
+    const headers = [
+      "ID",
+      "Asset Name",
+      "MAC ID",
+      "Service Tag",
+      "Category",
+      "Department",
+      "Vendor",
+      "Status",
+      "Purchase Date",
+      "Last Service Date",
+      "Notes",
+    ];
+    const rows = assets.map((a) => [
+      String(a.id),
+      a.assetName,
+      a.macId,
+      a.serviceTag,
+      a.category,
+      a.department,
+      a.vendor,
+      a.status,
+      a.purchaseDate,
+      a.lastServiceDate,
+      a.notes,
+    ]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${v}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "assets.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const editSelectField = (
+    id: keyof Omit<Asset, "id">,
+    label: string,
+    options: string[],
+  ) => (
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+        {label}
+      </Label>
+      <Select
+        value={editForm[id]}
+        onValueChange={(v) => setEditForm((f) => ({ ...f, [id]: v }))}
+      >
+        <SelectTrigger
+          className="bg-input border-border font-mono text-sm h-9"
+          data-ocid={`edit.${id}.select`}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt} value={opt} className="font-mono text-sm">
+              {opt}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-      <EditAssetDialog
-        asset={editingAsset}
-        open={editingAsset !== null}
-        onClose={() => setEditingAsset(null)}
-      />
-
-      {/* Stat cards */}
-      <section>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard
-            label="Total Assets"
-            value={assets.length}
-            icon={<Package className="h-5 w-5" />}
-            color="bg-primary/10 text-primary"
-            delay={0}
-          />
-          <StatCard
-            label="Active"
-            value={totalActive}
-            icon={<Activity className="h-5 w-5" />}
-            color="bg-[oklch(0.72_0.18_145/0.15)] text-[oklch(0.72_0.18_145)]"
-            delay={0.06}
-          />
-          <StatCard
-            label="In Repair"
-            value={totalRepair}
-            icon={<Wrench className="h-5 w-5" />}
-            color="bg-[oklch(0.78_0.16_70/0.15)] text-[oklch(0.78_0.16_70)]"
-            delay={0.12}
-          />
-          <StatCard
-            label="Top Department"
-            value={topDept ? `${topDept[0]} (${topDept[1]})` : "—"}
-            icon={<Building2 className="h-5 w-5" />}
-            color="bg-[oklch(0.65_0.15_300/0.15)] text-[oklch(0.65_0.15_300)]"
-            delay={0.18}
-          />
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
+            Assets by Category
+          </p>
+          {categoryChart.length === 0 ? (
+            <div
+              className="h-48 flex items-center justify-center text-muted-foreground font-mono text-sm"
+              data-ocid="dashboard.category_chart.empty_state"
+            >
+              No data yet
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart
+                data={categoryChart}
+                margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="oklch(0.25 0.015 240)"
+                />
+                <XAxis
+                  dataKey="name"
+                  tick={{
+                    fontFamily: "Geist Mono",
+                    fontSize: 11,
+                    fill: "oklch(0.55 0.02 240)",
+                  }}
+                />
+                <YAxis
+                  tick={{
+                    fontFamily: "Geist Mono",
+                    fontSize: 11,
+                    fill: "oklch(0.55 0.02 240)",
+                  }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "oklch(0.17 0.01 240)",
+                    border: "1px solid oklch(0.25 0.015 240)",
+                    fontFamily: "Geist Mono",
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: "oklch(0.92 0.01 240)" }}
+                />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {categoryChart.map((entry, i) => (
+                    <Cell
+                      key={entry.name}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
-      </section>
 
-      {/* Filter bar */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.25 }}
-      >
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-3 flex-1">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                data-ocid="dashboard.search_input"
-                placeholder="Search by name, serial, MAC..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 font-mono text-sm bg-card border-border placeholder:text-muted-foreground/50"
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
+            Assets by Status
+          </p>
+          {statusChart.length === 0 ? (
+            <div
+              className="h-48 flex items-center justify-center text-muted-foreground font-mono text-sm"
+              data-ocid="dashboard.status_chart.empty_state"
+            >
+              No data yet
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={statusChart}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, percent }) =>
+                    `${name} ${(percent * 100).toFixed(0)}%`
+                  }
+                  labelLine={false}
+                >
+                  {statusChart.map((entry, i) => (
+                    <Cell
+                      key={entry.name}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: "oklch(0.17 0.01 240)",
+                    border: "1px solid oklch(0.25 0.015 240)",
+                    fontFamily: "Geist Mono",
+                    fontSize: 12,
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{ fontFamily: "Geist Mono", fontSize: 11 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      {/* Filters + Export */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Filter by Department"
+          value={filterDept}
+          onChange={(e) => setFilterDept(e.target.value)}
+          className="bg-input border-border font-mono text-sm h-9 w-52"
+          data-ocid="dashboard.department.search_input"
+        />
+        <Input
+          placeholder="Filter by Vendor"
+          value={filterVendor}
+          onChange={(e) => setFilterVendor(e.target.value)}
+          className="bg-input border-border font-mono text-sm h-9 w-52"
+          data-ocid="dashboard.vendor.search_input"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="font-mono gap-2 ml-auto"
+          onClick={exportCSV}
+          data-ocid="dashboard.export.button"
+        >
+          <Download className="h-4 w-4" /> Export CSV
+        </Button>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+          <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+            Inventory ({filtered.length})
+          </p>
+        </div>
+        {isLoading ? (
+          <div
+            className="flex items-center justify-center py-16 gap-3"
+            data-ocid="dashboard.table.loading_state"
+          >
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="font-mono text-sm text-muted-foreground">
+              Loading assets...
+            </span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center py-16 gap-3"
+            data-ocid="dashboard.table.empty_state"
+          >
+            <PackageSearch className="h-10 w-10 text-muted-foreground/40" />
+            <p className="font-mono text-sm text-muted-foreground">
+              No assets found
+            </p>
+          </div>
+        ) : (
+          <Table data-ocid="dashboard.table">
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                {[
+                  "Asset Name",
+                  "Category",
+                  "Department",
+                  "Vendor",
+                  "Status",
+                  "Purchase Date",
+                  "Actions",
+                ].map((h) => (
+                  <TableHead
+                    key={h}
+                    className="font-mono text-xs text-muted-foreground uppercase tracking-wider"
+                  >
+                    {h}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((asset, i) => (
+                <TableRow
+                  key={String(asset.id)}
+                  className="border-border"
+                  data-ocid={`dashboard.asset.item.${i + 1}`}
+                >
+                  <TableCell className="font-mono text-sm font-medium">
+                    {asset.assetName}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">
+                    {asset.category}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">
+                    {asset.department}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">
+                    {asset.vendor}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono text-xs px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary">
+                      {asset.status}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">
+                    {asset.purchaseDate}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => openEdit(asset)}
+                        data-ocid={`dashboard.asset.edit_button.${i + 1}`}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget(asset)}
+                        data-ocid={`dashboard.asset.delete_button.${i + 1}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editAsset} onOpenChange={(o) => !o && setEditAsset(null)}>
+        <DialogContent className="max-w-2xl" data-ocid="dashboard.edit.dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display">Edit Asset</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+            {(
+              [
+                ["assetName", "Asset Name"],
+                ["macId", "MAC ID"],
+                ["serviceTag", "Service Tag"],
+                ["purchaseDate", "Purchase Date"],
+                ["lastServiceDate", "Last Service Date"],
+              ] as [keyof Omit<Asset, "id">, string][]
+            ).map(([id, label]) => (
+              <div key={id} className="flex flex-col gap-1.5">
+                <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                  {label}
+                </Label>
+                <Input
+                  value={editForm[id]}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, [id]: e.target.value }))
+                  }
+                  className="bg-input border-border font-mono text-sm h-9"
+                  data-ocid={`edit.${id}.input`}
+                />
+              </div>
+            ))}
+            {editSelectField("category", "Category", categories)}
+            {editSelectField("department", "Department", departments)}
+            {editSelectField("vendor", "Vendor", vendors)}
+            {editSelectField("status", "Status", statuses)}
+            <div className="sm:col-span-2 flex flex-col gap-1.5">
+              <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                Notes
+              </Label>
+              <Textarea
+                value={editForm.notes}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, notes: e.target.value }))
+                }
+                className="bg-input border-border font-mono text-sm resize-none"
+                rows={3}
+                data-ocid="edit.notes.textarea"
               />
             </div>
-
-            <Select value={deptFilter} onValueChange={setDeptFilter}>
-              <SelectTrigger
-                data-ocid="dashboard.dept.select"
-                className="w-[180px] font-mono text-sm bg-card border-border"
-              >
-                <SelectValue placeholder="All Departments" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                <SelectItem value="all" className="font-mono text-sm">
-                  All Departments
-                </SelectItem>
-                {DEPARTMENT_OPTIONS.map((opt) => (
-                  <SelectItem
-                    key={opt.value}
-                    value={opt.value}
-                    className="font-mono text-sm"
-                  >
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={vendorFilter} onValueChange={setVendorFilter}>
-              <SelectTrigger
-                data-ocid="dashboard.vendor.select"
-                className="w-[160px] font-mono text-sm bg-card border-border"
-              >
-                <SelectValue placeholder="All Vendors" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                <SelectItem value="all" className="font-mono text-sm">
-                  All Vendors
-                </SelectItem>
-                {VENDOR_OPTIONS.map((v) => (
-                  <SelectItem key={v} value={v} className="font-mono text-sm">
-                    {v}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
-
-          <Button
-            data-ocid="dashboard.export.button"
-            variant="outline"
-            size="sm"
-            onClick={() => exportToCSV(filtered)}
-            disabled={filtered.length === 0}
-            className="font-mono text-xs border-border hover:border-primary/50 hover:text-primary gap-2 shrink-0"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export CSV
-            {filtered.length > 0 && (
-              <Badge
-                variant="outline"
-                className="font-mono text-[10px] border-primary/30 text-primary bg-primary/10 ml-0.5"
-              >
-                {filtered.length}
-              </Badge>
-            )}
-          </Button>
-        </div>
-      </motion.section>
-
-      {/* Inventory table */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.3 }}
-        data-ocid="dashboard.asset.table"
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="font-display font-semibold text-base text-foreground tracking-wide">
-            Asset Inventory
-          </h2>
-          {assets.length > 0 && (
-            <Badge
+          <DialogFooter>
+            <Button
               variant="outline"
-              className="font-mono text-xs border-primary/30 text-primary bg-primary/10"
+              onClick={() => setEditAsset(null)}
+              data-ocid="dashboard.edit.cancel_button"
             >
-              {filtered.length}
-              {filtered.length !== assets.length ? ` / ${assets.length}` : ""}
-            </Badge>
-          )}
-          <div className="h-px flex-1 bg-border" />
-        </div>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={updateAsset.isPending}
+              data-ocid="dashboard.edit.save_button"
+            >
+              {updateAsset.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          {isLoading ? (
-            <div
-              data-ocid="dashboard.asset.loading_state"
-              className="p-6 space-y-3"
+      {/* Delete Confirm */}
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <DialogContent data-ocid="dashboard.delete.dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display">Delete Asset?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm font-mono text-muted-foreground">
+            Are you sure you want to delete{" "}
+            <span className="text-foreground font-semibold">
+              &ldquo;{deleteTarget?.assetName}&rdquo;
+            </span>
+            ? This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              data-ocid="dashboard.delete.cancel_button"
             >
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-10 w-full bg-muted/50" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <motion.div
-              data-ocid="dashboard.asset.empty_state"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-16 px-4 text-center"
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteAsset.isPending}
+              data-ocid="dashboard.delete.confirm_button"
             >
-              <div className="w-16 h-16 rounded-xl bg-muted/30 border border-border flex items-center justify-center mb-4">
-                <ServerCrash className="h-7 w-7 text-muted-foreground" />
-              </div>
-              <p className="font-display font-medium text-foreground mb-1">
-                {assets.length === 0
-                  ? "No assets registered"
-                  : "No assets match your filters"}
-              </p>
-              <p className="text-sm font-mono text-muted-foreground">
-                {assets.length === 0
-                  ? "Use the Register Asset page to add your first asset."
-                  : "Try adjusting or clearing the search and filters."}
-              </p>
-            </motion.div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    {[
-                      "#",
-                      "Asset Name",
-                      "Category",
-                      "Serial No.",
-                      "MAC ID",
-                      "Service Tag",
-                      "Status",
-                      "Department",
-                      "Purchase Date",
-                      "Vendor",
-                      "Last Service",
-                      "Location",
-                      "Notes",
-                      "",
-                    ].map((h) => (
-                      <TableHead
-                        key={h}
-                        className="font-mono text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap"
-                      >
-                        {h}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <AnimatePresence initial={false}>
-                    {filtered.map((asset, idx) => (
-                      <motion.tr
-                        key={String(asset.id)}
-                        data-ocid={`dashboard.asset.row.${idx + 1}`}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 8 }}
-                        transition={{ duration: 0.2 }}
-                        className="border-border hover:bg-accent/30 transition-colors"
-                      >
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {idx + 1}
-                        </TableCell>
-                        <TableCell className="font-medium text-sm text-foreground min-w-[140px]">
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">
-                              {getCategoryIcon(asset.category)}
-                            </span>
-                            {asset.name}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-mono text-xs text-muted-foreground bg-muted/30 border border-border px-2 py-0.5 rounded whitespace-nowrap">
-                            {asset.category === Category.NetworkDevice
-                              ? "Network"
-                              : asset.category}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                          {asset.serialNumber || (
-                            <span className="opacity-30">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                          {asset.macId || <span className="opacity-30">—</span>}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                          {asset.serviceTag || (
-                            <span className="opacity-30">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={asset.status} />
-                        </TableCell>
-                        <TableCell>
-                          {asset.assignedDepartment ? (
-                            <span className="font-mono text-xs text-muted-foreground bg-muted/30 border border-border px-2 py-0.5 rounded">
-                              {asset.assignedDepartment}
-                            </span>
-                          ) : (
-                            <span className="opacity-30">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                          {asset.purchaseDate || (
-                            <span className="opacity-30">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                          {asset.purchaseVendor || (
-                            <span className="opacity-30">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                          {asset.lastServiceDate || (
-                            <span className="opacity-30">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {asset.location || (
-                            <span className="opacity-30">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
-                          {asset.notes || <span className="opacity-30">—</span>}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              data-ocid={`dashboard.asset.edit_button.${idx + 1}`}
-                              onClick={() => setEditingAsset(asset)}
-                              className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  data-ocid={`dashboard.asset.delete_button.${idx + 1}`}
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="bg-card border-border">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="font-display">
-                                    Remove Asset
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription className="font-mono text-sm">
-                                    Delete{" "}
-                                    <span className="text-foreground font-medium">
-                                      {asset.name}
-                                    </span>{" "}
-                                    from the inventory? This cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel
-                                    data-ocid="delete.asset.cancel_button"
-                                    className="font-mono text-sm"
-                                  >
-                                    Cancel
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    data-ocid="delete.asset.confirm_button"
-                                    onClick={() => handleDelete(asset.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-mono text-sm"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </div>
-      </motion.section>
+              {deleteAsset.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

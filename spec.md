@@ -1,22 +1,19 @@
-# IT Asset Registry
+# IT Asset Data Entry
 
 ## Current State
-Three pages: Register Asset, Dashboard & Inventory. No dedicated KPI/analytics page by category.
+The app has a Motoko backend storing assets and dropdown options in non-stable Map variables wiped on every canister upgrade.
 
 ## Requested Changes (Diff)
 
 ### Add
-- New `CategoryKPIPage` component showing KPI cards per asset category
-- Nav tab "Category KPI" in App.tsx
-- KPI cards displaying: total count, active count, in-repair count, retired count per category
-- A summary bar showing percentage share per category
+- Stable storage for all options and assets
 
 ### Modify
-- App.tsx: add `kpi` page type and nav tab
+- Replace Map-based storage with stable var arrays
 
 ### Remove
-- Nothing
+- Non-stable Map storage
 
 ## Implementation Plan
-1. Create `src/frontend/src/components/CategoryKPIPage.tsx` with KPI cards for each category
-2. Update `App.tsx` to include the new tab and render the new page
+1. Regenerate Motoko backend with stable var arrays
+2. No frontend changes needed
