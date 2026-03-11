@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -9,144 +10,39 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  ArrowRight,
-  CheckCircle2,
-  ChevronRight,
-  Cpu,
-  Loader2,
-} from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { useAddAsset, useGetOptions } from "@/hooks/useQueries";
+import { CheckCircle2, Loader2, PlusCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useAddAsset, useGetOptions } from "../hooks/useQueries";
 
-type SpecFieldConfig = {
-  id: string;
-  label: string;
-  type: "text" | "select";
-  options?: string[];
-};
-
-function getSpecFields(category: string): SpecFieldConfig[] {
-  const c = category.toLowerCase();
-
-  if (/desktop|cpu|laptop|computer|workstation|\bpc\b/.test(c)) {
-    return [
-      { id: "model", label: "Model", type: "text" },
-      { id: "processor", label: "Processor", type: "text" },
-      {
-        id: "ram",
-        label: "RAM",
-        type: "select",
-        options: ["4GB", "8GB", "16GB", "32GB", "64GB"],
-      },
-      {
-        id: "storageType",
-        label: "Storage Type",
-        type: "select",
-        options: ["HDD", "SSD", "Both"],
-      },
-      {
-        id: "storageCapacity",
-        label: "Storage Capacity",
-        type: "select",
-        options: ["128GB", "256GB", "512GB", "1TB", "2TB"],
-      },
-    ];
-  }
-  if (/printer/.test(c)) {
-    return [
-      { id: "modelName", label: "Model Name", type: "text" },
-      {
-        id: "printerType",
-        label: "Printer Type",
-        type: "select",
-        options: ["Ink", "Cartridge", "Barcode", "Laser", "Thermal"],
-      },
-    ];
-  }
-  if (/monitor|display|screen/.test(c)) {
-    return [
-      { id: "model", label: "Model", type: "text" },
-      { id: "screenSize", label: "Screen Size", type: "text" },
-      {
-        id: "resolution",
-        label: "Resolution",
-        type: "select",
-        options: ["HD", "Full HD", "2K", "4K"],
-      },
-    ];
-  }
-  if (/server/.test(c)) {
-    return [
-      { id: "model", label: "Model", type: "text" },
-      { id: "processor", label: "Processor", type: "text" },
-      {
-        id: "ram",
-        label: "RAM",
-        type: "select",
-        options: ["4GB", "8GB", "16GB", "32GB", "64GB"],
-      },
-      {
-        id: "storageType",
-        label: "Storage Type",
-        type: "select",
-        options: ["HDD", "SSD", "Both"],
-      },
-      {
-        id: "storageCapacity",
-        label: "Storage Capacity",
-        type: "select",
-        options: ["128GB", "256GB", "512GB", "1TB", "2TB"],
-      },
-      { id: "osSoftware", label: "OS / Software", type: "text" },
-    ];
-  }
-  if (/network|router|switch|firewall|access point/.test(c)) {
-    return [
-      { id: "model", label: "Model", type: "text" },
-      {
-        id: "ports",
-        label: "Ports",
-        type: "select",
-        options: ["4", "8", "16", "24", "48"],
-      },
-      {
-        id: "speed",
-        label: "Speed",
-        type: "select",
-        options: ["100Mbps", "1Gbps", "10Gbps"],
-      },
-    ];
-  }
-  if (/ups|power/.test(c)) {
-    return [
-      { id: "model", label: "Model", type: "text" },
-      { id: "capacityVA", label: "Capacity VA", type: "text" },
-    ];
-  }
-  if (/phone|mobile|tablet/.test(c)) {
-    return [
-      { id: "model", label: "Model", type: "text" },
-      { id: "imei", label: "IMEI", type: "text" },
-    ];
-  }
-  if (/scanner/.test(c)) {
-    return [
-      { id: "model", label: "Model", type: "text" },
-      {
-        id: "scannerType",
-        label: "Scanner Type",
-        type: "select",
-        options: ["Flatbed", "Sheet-fed", "Handheld", "Barcode"],
-      },
-    ];
-  }
-  return [];
+interface Props {
+  onGoToDashboard: () => void;
 }
 
-const defaultForm = {
+type SpecFields = Record<string, string>;
+
+function getCategoryType(category: string): string | null {
+  const c = category.toLowerCase();
+  if (/desktop|cpu|laptop|computer|workstation|\bpc\b/.test(c))
+    return "computer";
+  if (/printer/.test(c)) return "printer";
+  if (/monitor|display|screen/.test(c)) return "monitor";
+  if (/server/.test(c)) return "server";
+  if (/network|router|switch|firewall/.test(c)) return "network";
+  if (/ups|power/.test(c)) return "ups";
+  if (/phone|mobile|tablet/.test(c)) return "phone";
+  if (/scanner/.test(c)) return "scanner";
+  return null;
+}
+
+function buildNotes(specs: SpecFields, notes: string): string {
+  const entries = Object.entries(specs).filter(([, v]) => v.trim());
+  if (!entries.length) return notes;
+  const specStr = entries.map(([k, v]) => `${k}: ${v}`).join(" | ");
+  return `[SPECS] ${specStr}\n[NOTES] ${notes}`;
+}
+
+const EMPTY_FORM = {
   assetName: "",
   macId: "",
   serviceTag: "",
@@ -159,323 +55,471 @@ const defaultForm = {
   notes: "",
 };
 
-export function EntryPage({
-  onGoToDashboard,
-}: { onGoToDashboard: () => void }) {
-  const [form, setForm] = useState(defaultForm);
-  const [specs, setSpecs] = useState<Record<string, string>>({});
-  const [lastRegistered, setLastRegistered] = useState<string | null>(null);
+export function EntryPage({ onGoToDashboard }: Props) {
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [specs, setSpecs] = useState<SpecFields>({});
+  const [saved, setSaved] = useState(false);
+
+  const categories = useGetOptions("category");
+  const departments = useGetOptions("department");
+  const vendors = useGetOptions("vendor");
+  const statuses = useGetOptions("status");
   const addAsset = useAddAsset();
 
-  const { data: categories = [] } = useGetOptions("category");
-  const { data: departments = [] } = useGetOptions("department");
-  const { data: vendors = [] } = useGetOptions("vendor");
-  const { data: statuses = [] } = useGetOptions("status");
+  const categoryType = getCategoryType(form.category);
 
-  const specFields = getSpecFields(form.category);
+  function setField(key: string, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (key === "category") {
+      setSpecs({});
+    }
+  }
 
-  const handleCategoryChange = (v: string) => {
-    setForm((f) => ({ ...f, category: v }));
-    setSpecs({});
-  };
+  function setSpec(key: string, value: string) {
+    setSpecs((prev) => ({ ...prev, [key]: value }));
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.assetName || !form.category || !form.status) {
       toast.error("Asset Name, Category, and Status are required.");
       return;
     }
     try {
-      const specEntries = Object.entries(specs)
-        .filter(([, v]) => v)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join(" | ");
-      const combinedNotes = specEntries
-        ? `[SPECS] ${specEntries}\n[NOTES] ${form.notes}`
-        : form.notes;
-      await addAsset.mutateAsync({ ...form, notes: combinedNotes });
-      setLastRegistered(form.assetName);
-      setForm(defaultForm);
+      const notesWithSpecs = buildNotes(specs, form.notes);
+      await addAsset.mutateAsync({ ...form, notes: notesWithSpecs });
+      toast.success("Asset registered successfully!");
+      setForm({ ...EMPTY_FORM });
       setSpecs({});
-      toast.success(`"${form.assetName}" registered successfully.`);
+      setSaved(true);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to register asset.",
+        `Failed to save: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
-  };
+  }
 
-  const field = (id: string, label: string, value: string, type = "text") => (
-    <div className="flex flex-col gap-1.5">
-      <Label
-        htmlFor={id}
-        className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
-      >
-        {label}
-      </Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => setForm((f) => ({ ...f, [id]: e.target.value }))}
-        className="bg-input border-border font-mono text-sm h-9"
-        data-ocid={`entry.${id}.input`}
-      />
-    </div>
-  );
-
-  const selectField = (
-    id: string,
+  function renderSelect(
     label: string,
-    value: string,
+    field: keyof typeof form,
+    options: string[] | undefined,
+    ocid: string,
+    required = false,
+  ) {
+    return (
+      <div className="space-y-1.5">
+        <Label
+          htmlFor={field}
+          className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
+        >
+          {label}
+          {required && <span className="text-destructive ml-1">*</span>}
+        </Label>
+        <Select
+          value={form[field] || undefined}
+          onValueChange={(val) => setField(field, val)}
+        >
+          <SelectTrigger
+            data-ocid={ocid}
+            className="bg-muted/30 border-border h-9 text-sm"
+          >
+            <SelectValue
+              placeholder={
+                options?.length === 0
+                  ? "No options — add in Admin"
+                  : `Select ${label}`
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {(options ?? []).map((opt) => (
+              <SelectItem key={opt} value={opt}>
+                {opt}
+              </SelectItem>
+            ))}
+            {(options ?? []).length === 0 && (
+              <div className="px-3 py-2 text-xs text-muted-foreground">
+                No options yet — add in Admin
+              </div>
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  function renderSpecSelect(
+    label: string,
+    specKey: string,
     options: string[],
-    onChange?: (v: string) => void,
-  ) => (
-    <div className="flex flex-col gap-1.5">
-      <Label
-        htmlFor={id}
-        className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
-      >
-        {label}
-      </Label>
-      <Select
-        value={value || undefined}
-        onValueChange={onChange ?? ((v) => setForm((f) => ({ ...f, [id]: v })))}
-      >
-        <SelectTrigger
-          id={id}
-          className="bg-input border-border font-mono text-sm h-9"
-          data-ocid={`entry.${id}.select`}
+    ocid: string,
+  ) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+          {label}
+        </Label>
+        <Select
+          value={specs[specKey] || undefined}
+          onValueChange={(val) => setSpec(specKey, val)}
         >
-          <SelectValue placeholder={`Select ${label}`} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((opt) => (
-            <SelectItem key={opt} value={opt} className="font-mono text-sm">
-              {opt}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {options.length === 0 && (
-        <p className="text-xs font-mono text-muted-foreground">
-          No options yet — add them in Admin Settings
+          <SelectTrigger
+            data-ocid={ocid}
+            className="bg-muted/30 border-border h-9 text-sm"
+          >
+            <SelectValue placeholder={`Select ${label}`} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((o) => (
+              <SelectItem key={o} value={o}>
+                {o}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  function renderSpecInput(label: string, specKey: string, ocid: string) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+          {label}
+        </Label>
+        <Input
+          data-ocid={ocid}
+          value={specs[specKey] || ""}
+          onChange={(e) => setSpec(specKey, e.target.value)}
+          className="bg-muted/30 border-border h-9 text-sm"
+          placeholder={label}
+        />
+      </div>
+    );
+  }
+
+  function renderSpecFields() {
+    if (!categoryType) return null;
+    return (
+      <div className="mt-2 p-4 bg-muted/20 border border-border/60 rounded-lg space-y-4">
+        <p className="text-xs font-mono text-primary uppercase tracking-widest">
+          — Spec Fields —
         </p>
-      )}
-    </div>
-  );
-
-  const specTextField = (cfg: SpecFieldConfig) => (
-    <div key={cfg.id} className="flex flex-col gap-1.5">
-      <Label
-        htmlFor={`spec-${cfg.id}`}
-        className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
-      >
-        {cfg.label}
-      </Label>
-      <Input
-        id={`spec-${cfg.id}`}
-        type="text"
-        value={specs[cfg.id] ?? ""}
-        onChange={(e) => setSpecs((s) => ({ ...s, [cfg.id]: e.target.value }))}
-        className="bg-input border-border font-mono text-sm h-9"
-        data-ocid={`spec.${cfg.id}.input`}
-      />
-    </div>
-  );
-
-  const specSelectField = (cfg: SpecFieldConfig) => (
-    <div key={cfg.id} className="flex flex-col gap-1.5">
-      <Label
-        htmlFor={`spec-${cfg.id}`}
-        className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
-      >
-        {cfg.label}
-      </Label>
-      <Select
-        value={specs[cfg.id] || undefined}
-        onValueChange={(v) => setSpecs((s) => ({ ...s, [cfg.id]: v }))}
-      >
-        <SelectTrigger
-          id={`spec-${cfg.id}`}
-          className="bg-input border-border font-mono text-sm h-9"
-          data-ocid={`spec.${cfg.id}.select`}
-        >
-          <SelectValue placeholder={`Select ${cfg.label}`} />
-        </SelectTrigger>
-        <SelectContent>
-          {(cfg.options ?? []).map((opt) => (
-            <SelectItem key={opt} value={opt} className="font-mono text-sm">
-              {opt}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {categoryType === "computer" && (
+            <>
+              {renderSpecInput("Model", "model", "spec.model.input")}
+              {renderSpecInput(
+                "Processor",
+                "processor",
+                "spec.processor.input",
+              )}
+              {renderSpecSelect(
+                "RAM",
+                "ram",
+                ["4GB", "8GB", "16GB", "32GB", "64GB"],
+                "spec.ram.select",
+              )}
+              {renderSpecSelect(
+                "Storage Type",
+                "storageType",
+                ["HDD", "SSD", "Both"],
+                "spec.storagetype.select",
+              )}
+              {renderSpecSelect(
+                "Storage Capacity",
+                "storageCapacity",
+                ["128GB", "256GB", "512GB", "1TB", "2TB"],
+                "spec.storagecapacity.select",
+              )}
+            </>
+          )}
+          {categoryType === "printer" && (
+            <>
+              {renderSpecInput(
+                "Model Name",
+                "modelName",
+                "spec.modelname.input",
+              )}
+              {renderSpecSelect(
+                "Printer Type",
+                "printerType",
+                ["Ink", "Cartridge", "Barcode", "Laser", "Thermal"],
+                "spec.printertype.select",
+              )}
+            </>
+          )}
+          {categoryType === "monitor" && (
+            <>
+              {renderSpecInput("Model", "model", "spec.model.input")}
+              {renderSpecInput(
+                "Screen Size",
+                "screenSize",
+                "spec.screensize.input",
+              )}
+              {renderSpecSelect(
+                "Resolution",
+                "resolution",
+                ["HD", "Full HD", "2K", "4K"],
+                "spec.resolution.select",
+              )}
+            </>
+          )}
+          {categoryType === "server" && (
+            <>
+              {renderSpecInput("Model", "model", "spec.model.input")}
+              {renderSpecInput(
+                "Processor",
+                "processor",
+                "spec.processor.input",
+              )}
+              {renderSpecSelect(
+                "RAM",
+                "ram",
+                ["4GB", "8GB", "16GB", "32GB", "64GB", "128GB", "256GB"],
+                "spec.ram.select",
+              )}
+              {renderSpecSelect(
+                "Storage Type",
+                "storageType",
+                ["HDD", "SSD", "Both"],
+                "spec.storagetype.select",
+              )}
+              {renderSpecSelect(
+                "Storage Capacity",
+                "storageCapacity",
+                ["512GB", "1TB", "2TB", "4TB", "8TB"],
+                "spec.storagecapacity.select",
+              )}
+              {renderSpecInput("OS / Software", "os", "spec.os.input")}
+            </>
+          )}
+          {categoryType === "network" && (
+            <>
+              {renderSpecInput("Model", "model", "spec.model.input")}
+              {renderSpecSelect(
+                "Ports",
+                "ports",
+                ["4", "8", "16", "24", "48"],
+                "spec.ports.select",
+              )}
+              {renderSpecSelect(
+                "Speed",
+                "speed",
+                ["100Mbps", "1Gbps", "10Gbps"],
+                "spec.speed.select",
+              )}
+            </>
+          )}
+          {categoryType === "ups" && (
+            <>
+              {renderSpecInput("Model", "model", "spec.model.input")}
+              {renderSpecInput(
+                "Capacity VA",
+                "capacityVA",
+                "spec.capacityva.input",
+              )}
+            </>
+          )}
+          {categoryType === "phone" && (
+            <>
+              {renderSpecInput("Model", "model", "spec.model.input")}
+              {renderSpecInput("IMEI", "imei", "spec.imei.input")}
+            </>
+          )}
+          {categoryType === "scanner" && (
+            <>
+              {renderSpecInput("Model", "model", "spec.model.input")}
+              {renderSpecSelect(
+                "Scanner Type",
+                "scannerType",
+                ["Flatbed", "Sheet-fed", "Handheld", "Barcode"],
+                "spec.scannertype.select",
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-      >
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-1">
-            <ChevronRight className="h-4 w-4 text-primary" />
-            <h2 className="font-display font-semibold text-xl text-foreground tracking-wide">
-              Register New Asset
-            </h2>
-          </div>
-          <p className="text-sm font-mono text-muted-foreground pl-6">
-            Fill in the details below to add a new IT asset to the inventory.
-          </p>
-        </div>
-
-        <AnimatePresence>
-          {lastRegistered && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              className="mb-6 flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/10 px-5 py-3"
-              data-ocid="entry.success_state"
-            >
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
-                <p className="text-sm font-mono text-foreground">
-                  <span className="text-primary font-semibold">
-                    &ldquo;{lastRegistered}&rdquo;
-                  </span>{" "}
-                  was registered.
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary font-mono text-xs gap-1"
-                onClick={onGoToDashboard}
-                data-ocid="entry.dashboard.link"
-              >
-                View Inventory <ArrowRight className="h-3 w-3" />
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-6"
-          data-ocid="entry.form.panel"
+    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+      {saved && (
+        <div
+          data-ocid="register.success_state"
+          className="mb-6 flex items-center justify-between gap-4 p-4 bg-primary/10 border border-primary/30 rounded-lg"
         >
-          <div className="rounded-xl border border-border bg-card p-6 space-y-5">
-            <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">
-              Asset Information
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {field("assetName", "Asset Name *", form.assetName)}
-              {field("macId", "MAC ID", form.macId)}
-              {field("serviceTag", "Service Tag", form.serviceTag)}
-              {selectField(
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+            <span className="text-sm font-mono text-primary">
+              Asset registered successfully!
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-ocid="register.dashboard.link"
+            onClick={onGoToDashboard}
+            className="text-xs font-mono border-primary/40 text-primary hover:bg-primary/10"
+          >
+            View Inventory →
+          </Button>
+        </div>
+      )}
+
+      <Card className="border-border bg-card/60 backdrop-blur-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="font-display text-lg flex items-center gap-2">
+            <PlusCircle className="h-5 w-5 text-primary" />
+            Register New Asset
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                  Asset Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  data-ocid="register.assetname.input"
+                  value={form.assetName}
+                  onChange={(e) => setField("assetName", e.target.value)}
+                  className="bg-muted/30 border-border h-9 text-sm"
+                  placeholder="e.g. Dell Laptop #42"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                  MAC ID
+                </Label>
+                <Input
+                  data-ocid="register.macid.input"
+                  value={form.macId}
+                  onChange={(e) => setField("macId", e.target.value)}
+                  className="bg-muted/30 border-border h-9 text-sm"
+                  placeholder="AA:BB:CC:DD:EE:FF"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                  Service Tag
+                </Label>
+                <Input
+                  data-ocid="register.servicetag.input"
+                  value={form.serviceTag}
+                  onChange={(e) => setField("serviceTag", e.target.value)}
+                  className="bg-muted/30 border-border h-9 text-sm"
+                  placeholder="SVC-001"
+                />
+              </div>
+              {renderSelect(
+                "Category",
                 "category",
-                "Category *",
-                form.category,
-                categories,
-                handleCategoryChange,
+                categories.data,
+                "register.category.select",
+                true,
               )}
-              {selectField(
-                "department",
+              {renderSelect(
                 "Department",
-                form.department,
-                departments,
+                "department",
+                departments.data,
+                "register.department.select",
               )}
-              {selectField("vendor", "Vendor", form.vendor, vendors)}
-              {selectField("status", "Status *", form.status, statuses)}
-              {field(
-                "purchaseDate",
-                "Purchase Date",
-                form.purchaseDate,
-                "date",
+              {renderSelect(
+                "Vendor",
+                "vendor",
+                vendors.data,
+                "register.vendor.select",
               )}
-              {field(
-                "lastServiceDate",
-                "Last Service Date",
-                form.lastServiceDate,
-                "date",
+              {renderSelect(
+                "Status",
+                "status",
+                statuses.data,
+                "register.status.select",
+                true,
               )}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                  Purchase Date
+                </Label>
+                <Input
+                  data-ocid="register.purchasedate.input"
+                  type="date"
+                  value={form.purchaseDate}
+                  onChange={(e) => setField("purchaseDate", e.target.value)}
+                  className="bg-muted/30 border-border h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                  Last Service Date
+                </Label>
+                <Input
+                  data-ocid="register.lastservicedate.input"
+                  type="date"
+                  value={form.lastServiceDate}
+                  onChange={(e) => setField("lastServiceDate", e.target.value)}
+                  className="bg-muted/30 border-border h-9 text-sm"
+                />
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label
-                htmlFor="notes"
-                className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
-              >
+
+            {/* Dynamic Spec Fields */}
+            {renderSpecFields()}
+
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
                 Notes
               </Label>
               <Textarea
-                id="notes"
+                data-ocid="register.notes.textarea"
                 value={form.notes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, notes: e.target.value }))
-                }
-                className="bg-input border-border font-mono text-sm resize-none"
+                onChange={(e) => setField("notes", e.target.value)}
+                className="bg-muted/30 border-border text-sm resize-none"
                 rows={3}
-                data-ocid="entry.notes.textarea"
+                placeholder="Any additional notes..."
               />
             </div>
-          </div>
 
-          {/* Category-specific Specifications */}
-          <AnimatePresence>
-            {specFields.length > 0 && (
-              <motion.div
-                key={form.category}
-                initial={{ opacity: 0, y: 10, height: 0 }}
-                animate={{ opacity: 1, y: 0, height: "auto" }}
-                exit={{ opacity: 0, y: -6, height: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                style={{ overflow: "hidden" }}
-                data-ocid="entry.specs.panel"
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="submit"
+                data-ocid="register.submit_button"
+                disabled={addAsset.isPending}
+                className="flex-1 sm:flex-none font-mono text-sm"
               >
-                <div className="rounded-xl border border-primary/25 bg-primary/5 p-6 space-y-5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Cpu className="h-4 w-4 text-primary" />
-                    <p className="text-xs font-mono text-primary uppercase tracking-widest font-semibold">
-                      Specifications — {form.category}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    {specFields.map((cfg) =>
-                      cfg.type === "select"
-                        ? specSelectField(cfg)
-                        : specTextField(cfg),
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              disabled={addAsset.isPending}
-              className="font-mono gap-2 px-8"
-              data-ocid="entry.submit_button"
-            >
-              {addAsset.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Saving...
-                </>
-              ) : (
-                <>
-                  Register Asset <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-      </motion.div>
+                {addAsset.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Register Asset"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                data-ocid="register.cancel_button"
+                onClick={() => {
+                  setForm({ ...EMPTY_FORM });
+                  setSpecs({});
+                  setSaved(false);
+                }}
+                className="font-mono text-sm"
+              >
+                Clear
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   );
 }

@@ -12,6 +12,7 @@ export function useGetAllAssets() {
       return actor.getAssets();
     },
     enabled: !!actor && !isFetching,
+    refetchOnMount: "always",
   });
 }
 
@@ -46,7 +47,7 @@ export function useAddAsset() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.refetchQueries({ queryKey: ["assets"] });
     },
   });
 }
@@ -86,7 +87,7 @@ export function useUpdateAsset() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.refetchQueries({ queryKey: ["assets"] });
     },
   });
 }
@@ -102,7 +103,7 @@ export function useDeleteAsset() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.refetchQueries({ queryKey: ["assets"] });
     },
   });
 }
@@ -118,6 +119,8 @@ export function useGetOptions(fieldType: string) {
       return actor.getOptions(fieldType);
     },
     enabled: !!actor && !isFetching,
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 }
 
@@ -135,7 +138,7 @@ export function useAddOption() {
       return result;
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
+      queryClient.refetchQueries({
         queryKey: ["options", variables.fieldType],
       });
     },
@@ -156,7 +159,7 @@ export function useRemoveOption() {
       return result;
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
+      queryClient.refetchQueries({
         queryKey: ["options", variables.fieldType],
       });
     },
@@ -182,7 +185,7 @@ export function useUpdateOption() {
       return result;
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
+      queryClient.refetchQueries({
         queryKey: ["options", variables.fieldType],
       });
     },

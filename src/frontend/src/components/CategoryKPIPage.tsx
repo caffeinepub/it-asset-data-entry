@@ -1,165 +1,141 @@
-import { Loader2 } from "lucide-react";
-import { motion } from "motion/react";
-import { useMemo } from "react";
-import { useGetAllAssets, useGetOptions } from "../hooks/useQueries";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useGetAllAssets } from "@/hooks/useQueries";
+import { Loader2, Package } from "lucide-react";
 
 const COLORS = [
   "oklch(0.75 0.14 195)",
   "oklch(0.72 0.18 145)",
   "oklch(0.78 0.16 70)",
-  "oklch(0.60 0.22 25)",
+  "oklch(0.65 0.2 25)",
   "oklch(0.65 0.15 300)",
-  "oklch(0.70 0.14 250)",
+  "oklch(0.7 0.18 240)",
+  "oklch(0.68 0.16 160)",
+  "oklch(0.6 0.12 40)",
 ];
 
 export function CategoryKPIPage() {
-  const { data: assets = [], isLoading: assetsLoading } = useGetAllAssets();
-  const { data: categories = [], isLoading: catsLoading } =
-    useGetOptions("category");
+  const { data: assets = [], isLoading } = useGetAllAssets();
 
-  const kpiData = useMemo(() => {
-    return categories.map((cat, i) => ({
-      name: cat,
-      count: assets.filter((a) => a.category === cat).length,
-      color: COLORS[i % COLORS.length],
-    }));
-  }, [assets, categories]);
+  if (isLoading) {
+    return (
+      <div
+        data-ocid="kpi.loading_state"
+        className="flex items-center justify-center py-32"
+      >
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   const total = assets.length;
 
-  const isLoading = assetsLoading || catsLoading;
+  const categoryMap: Record<string, number> = {};
+  for (const a of assets) {
+    const cat = a.category || "Uncategorized";
+    categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+  }
+  const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-      <div className="mb-6">
-        <h2 className="font-display font-semibold text-xl text-foreground tracking-wide">
-          Category KPI
-        </h2>
-        <p className="text-sm font-mono text-muted-foreground mt-1">
-          Asset distribution by category
-        </p>
+    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+      {/* Total card */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-border bg-card/60 sm:col-span-1">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-primary/15">
+                <Package className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                  Total Assets
+                </p>
+                <p className="text-3xl font-display font-bold text-foreground">
+                  {total}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {isLoading ? (
+      {/* Distribution bar */}
+      {total > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+            Distribution by Category
+          </h3>
+          <div
+            className="flex rounded-full overflow-hidden h-4"
+            data-ocid="kpi.distribution.section"
+          >
+            {entries.map(([cat, count], idx) => (
+              <div
+                key={cat}
+                style={{
+                  width: `${(count / total) * 100}%`,
+                  background: COLORS[idx % COLORS.length],
+                }}
+                title={`${cat}: ${count} (${((count / total) * 100).toFixed(1)}%)`}
+              />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {entries.map(([cat], idx) => (
+              <div key={cat} className="flex items-center gap-1.5">
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-sm"
+                  style={{ background: COLORS[idx % COLORS.length] }}
+                />
+                <span className="text-xs font-mono text-muted-foreground">
+                  {cat}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* KPI cards grid */}
+      {entries.length === 0 ? (
         <div
-          className="flex items-center justify-center py-24"
-          data-ocid="kpi.loading_state"
+          data-ocid="kpi.categories.empty_state"
+          className="flex flex-col items-center justify-center py-16 gap-2"
         >
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Package className="h-8 w-8 text-muted-foreground/40" />
+          <p className="text-sm font-mono text-muted-foreground">
+            No assets registered yet.
+          </p>
         </div>
       ) : (
-        <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {kpiData.map((kpi, i) => (
-              <motion.div
-                key={kpi.name}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07, duration: 0.35 }}
-                className="rounded-xl border border-border bg-card p-5 flex flex-col gap-2"
-                data-ocid={`kpi.category.card.${i + 1}`}
-              >
+        <div
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+          data-ocid="kpi.categories.section"
+        >
+          {entries.map(([cat, count], idx) => (
+            <Card
+              key={cat}
+              data-ocid={`kpi.categories.card.${idx + 1}`}
+              className="border-border bg-card/60 hover:bg-card/80 transition-colors"
+            >
+              <CardHeader className="pb-1 pt-4 px-4">
                 <div
-                  className="h-1.5 rounded-full w-10"
-                  style={{ background: kpi.color }}
+                  className="w-1 h-6 rounded-full mb-2"
+                  style={{ background: COLORS[idx % COLORS.length] }}
                 />
-                <p className="font-mono text-xs text-muted-foreground uppercase tracking-wider truncate">
-                  {kpi.name}
+                <CardTitle className="text-xs font-mono text-muted-foreground uppercase tracking-wider truncate">
+                  {cat}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <p className="text-3xl font-display font-bold">{count}</p>
+                <p className="text-xs font-mono text-muted-foreground mt-1">
+                  {((count / total) * 100).toFixed(1)}% of total
                 </p>
-                <p className="font-display text-3xl font-bold text-foreground">
-                  {kpi.count}
-                </p>
-                <p className="font-mono text-xs text-muted-foreground">
-                  {total > 0
-                    ? `${((kpi.count / total) * 100).toFixed(1)}%`
-                    : "0%"}{" "}
-                  of total
-                </p>
-              </motion.div>
-            ))}
-
-            {/* Total card */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: kpiData.length * 0.07, duration: 0.35 }}
-              className="rounded-xl border border-primary/30 bg-primary/10 p-5 flex flex-col gap-2"
-              data-ocid="kpi.total.card"
-            >
-              <div className="h-1.5 rounded-full w-10 bg-primary" />
-              <p className="font-mono text-xs text-primary/70 uppercase tracking-wider">
-                Total Assets
-              </p>
-              <p className="font-display text-3xl font-bold text-primary">
-                {total}
-              </p>
-              <p className="font-mono text-xs text-primary/60">
-                All categories
-              </p>
-            </motion.div>
-          </div>
-
-          {/* Distribution Bar */}
-          {total > 0 && (
-            <div className="rounded-xl border border-border bg-card p-5">
-              <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
-                Distribution
-              </p>
-              <div
-                className="flex h-8 rounded-lg overflow-hidden gap-0.5"
-                data-ocid="kpi.distribution.panel"
-              >
-                {kpiData
-                  .filter((k) => k.count > 0)
-                  .map((kpi) => (
-                    <div
-                      key={kpi.name}
-                      className="flex items-center justify-center transition-all duration-500 overflow-hidden"
-                      style={{
-                        width: `${(kpi.count / total) * 100}%`,
-                        background: kpi.color,
-                        minWidth: kpi.count > 0 ? "2px" : "0",
-                      }}
-                      title={`${kpi.name}: ${kpi.count} (${((kpi.count / total) * 100).toFixed(1)}%)`}
-                    >
-                      {kpi.count / total > 0.1 && (
-                        <span className="text-xs font-mono text-background font-semibold truncate px-1">
-                          {kpi.name}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-              </div>
-              <div className="flex flex-wrap gap-4 mt-4">
-                {kpiData
-                  .filter((k) => k.count > 0)
-                  .map((kpi) => (
-                    <div key={kpi.name} className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: kpi.color }}
-                      />
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {kpi.name} ({kpi.count})
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {kpiData.length === 0 && (
-            <div
-              className="rounded-xl border border-border bg-card p-10 text-center"
-              data-ocid="kpi.categories.empty_state"
-            >
-              <p className="font-mono text-sm text-muted-foreground">
-                No categories configured. Add categories in Admin Settings.
-              </p>
-            </div>
-          )}
-        </>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
     </main>
   );

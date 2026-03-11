@@ -1,41 +1,38 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Check,
-  Loader2,
-  Lock,
-  Pencil,
-  Plus,
-  Shield,
-  Trash2,
-  X,
-} from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 import {
   useAddOption,
   useGetOptions,
   useRemoveOption,
   useUpdateOption,
-} from "../hooks/useQueries";
+} from "@/hooks/useQueries";
+import {
+  Check,
+  Loader2,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
-const ADMIN_PASSWORD = "admin123";
-
-type FieldType = "category" | "department" | "vendor" | "status";
-
-const SECTIONS: { type: FieldType; label: string }[] = [
-  { type: "category", label: "Categories" },
-  { type: "department", label: "Departments" },
-  { type: "vendor", label: "Vendors" },
-  { type: "status", label: "Statuses" },
+const FIELD_TYPES = [
+  { key: "category", label: "Categories" },
+  { key: "department", label: "Departments" },
+  { key: "vendor", label: "Vendors" },
+  { key: "status", label: "Statuses" },
 ];
 
-function OptionsSection({
+function OptionSection({
   fieldType,
   label,
-}: { fieldType: FieldType; label: string }) {
+}: {
+  fieldType: string;
+  label: string;
+}) {
   const { data: options = [], isLoading } = useGetOptions(fieldType);
   const addOption = useAddOption();
   const removeOption = useRemoveOption();
@@ -45,290 +42,182 @@ function OptionsSection({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  const handleAdd = async () => {
-    const trimmed = newValue.trim();
-    if (!trimmed) return;
+  async function handleAdd() {
+    const val = newValue.trim();
+    if (!val) return;
     try {
-      await addOption.mutateAsync({ fieldType, value: trimmed });
+      await addOption.mutateAsync({ fieldType, value: val });
+      toast.success(`Added "${val}" to ${label}`);
       setNewValue("");
-      toast.success(`"${trimmed}" added to ${label}.`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Add failed.");
+      toast.error(
+        `Failed to add: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-  };
+  }
 
-  const handleRemove = async (value: string) => {
+  async function handleDelete(value: string) {
     try {
       await removeOption.mutateAsync({ fieldType, value });
-      toast.success(`"${value}" removed.`);
+      toast.success(`Removed "${value}"`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Remove failed.");
+      toast.error(
+        `Failed to remove: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-  };
+  }
 
-  const startEdit = (index: number, current: string) => {
-    setEditingIndex(index);
-    setEditValue(current);
-  };
-
-  const handleRename = async (oldValue: string) => {
-    const trimmed = editValue.trim();
-    if (!trimmed || trimmed === oldValue) {
+  async function handleSaveEdit(oldValue: string) {
+    const val = editValue.trim();
+    if (!val || val === oldValue) {
       setEditingIndex(null);
       return;
     }
     try {
-      await updateOption.mutateAsync({
-        fieldType,
-        oldValue,
-        newValue: trimmed,
-      });
+      await updateOption.mutateAsync({ fieldType, oldValue, newValue: val });
+      toast.success(`Updated to "${val}"`);
       setEditingIndex(null);
-      toast.success(`Renamed to "${trimmed}".`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Rename failed.");
+      toast.error(
+        `Failed to update: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-  };
+  }
+
+  function startEdit(idx: number, value: string) {
+    setEditingIndex(idx);
+    setEditValue(value);
+  }
 
   return (
-    <div
-      className="rounded-xl border border-border bg-card p-5 space-y-4"
-      data-ocid={`admin.${fieldType}.panel`}
-    >
-      {/* Section header with count badge */}
-      <div className="flex items-center gap-2">
-        <div className="w-1.5 h-5 rounded-full bg-primary" />
-        <h3 className="font-display font-semibold text-base text-foreground">
+    <Card className="border-border bg-card/60">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-display flex items-center gap-2">
           {label}
-        </h3>
-        <Badge variant="secondary" className="font-mono text-xs ml-1">
-          {options.length}
-        </Badge>
-      </div>
-
-      {/* Add new — always at the top */}
-      <div className="flex gap-2">
-        <Input
-          placeholder={`New ${label.slice(0, -1).toLowerCase()}...`}
-          value={newValue}
-          onChange={(e) => setNewValue(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          className="bg-input border-border font-mono text-sm h-9 flex-1"
-          data-ocid={`admin.${fieldType}.input`}
-        />
-        <Button
-          size="sm"
-          className="gap-1.5 font-mono"
-          onClick={handleAdd}
-          disabled={addOption.isPending || !newValue.trim()}
-          data-ocid={`admin.${fieldType}.primary_button`}
-        >
-          {addOption.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Plus className="h-3.5 w-3.5" />
-          )}
-          Add
-        </Button>
-      </div>
-
-      {/* Options list */}
-      {isLoading ? (
-        <div
-          className="flex items-center gap-2 py-4"
-          data-ocid={`admin.${fieldType}.loading_state`}
-        >
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <span className="font-mono text-sm text-muted-foreground">
-            Loading...
+          <span className="ml-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-mono">
+            {options.length}
           </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Add new */}
+        <div className="flex gap-2">
+          <Input
+            data-ocid={`admin.${fieldType}.input`}
+            value={newValue}
+            onChange={(e) => setNewValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            placeholder={`Add new ${label.toLowerCase().replace(/s$/, "")}...`}
+            className="bg-muted/30 border-border h-8 text-sm flex-1"
+          />
+          <Button
+            type="button"
+            size="sm"
+            data-ocid={`admin.${fieldType}.primary_button`}
+            onClick={handleAdd}
+            disabled={addOption.isPending || !newValue.trim()}
+            className="h-8 px-3"
+          >
+            {addOption.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
+          </Button>
         </div>
-      ) : (
-        <div className="space-y-1.5">
-          {options.length === 0 && (
-            <p
-              className="font-mono text-sm text-muted-foreground py-2 text-center border border-dashed border-border rounded-lg py-4"
-              data-ocid={`admin.${fieldType}.empty_state`}
-            >
-              No options yet. Add one above.
-            </p>
-          )}
-          {options.map((opt, i) => (
-            <div
-              key={opt}
-              className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2"
-              data-ocid={`admin.${fieldType}.item.${i + 1}`}
-            >
-              {/* Index number */}
-              <span className="font-mono text-xs text-muted-foreground w-5 shrink-0 text-right">
-                {i + 1}.
-              </span>
 
-              {editingIndex === i ? (
-                <>
-                  <Input
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleRename(opt);
-                      if (e.key === "Escape") setEditingIndex(null);
-                    }}
-                    className="h-7 text-sm font-mono bg-input border-border flex-1"
-                    autoFocus
-                    data-ocid={`admin.${fieldType}.edit.input`}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 text-primary shrink-0"
-                    onClick={() => handleRename(opt)}
-                    data-ocid={`admin.${fieldType}.save_button.${i + 1}`}
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 shrink-0"
-                    onClick={() => setEditingIndex(null)}
-                    data-ocid={`admin.${fieldType}.cancel_button.${i + 1}`}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <span className="font-mono text-sm text-foreground flex-1">
-                    {opt}
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-                    onClick={() => startEdit(i, opt)}
-                    data-ocid={`admin.${fieldType}.edit_button.${i + 1}`}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-                    onClick={() => handleRemove(opt)}
-                    disabled={removeOption.isPending}
-                    data-ocid={`admin.${fieldType}.delete_button.${i + 1}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+        {/* List */}
+        {isLoading ? (
+          <div
+            data-ocid={`admin.${fieldType}.loading_state`}
+            className="py-4 flex items-center justify-center"
+          >
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : options.length === 0 ? (
+          <div
+            data-ocid={`admin.${fieldType}.empty_state`}
+            className="py-3 text-center text-xs font-mono text-muted-foreground"
+          >
+            No {label.toLowerCase()} yet
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {options.map((opt, idx) => (
+              <li
+                key={opt}
+                data-ocid={`admin.${fieldType}.item.${idx + 1}`}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/20 border border-border/50"
+              >
+                {editingIndex === idx ? (
+                  <>
+                    <Input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveEdit(opt);
+                        if (e.key === "Escape") setEditingIndex(null);
+                      }}
+                      className="h-7 text-sm flex-1 bg-background border-border"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      data-ocid={`admin.${fieldType}.save_button.${idx + 1}`}
+                      onClick={() => handleSaveEdit(opt)}
+                      className="text-primary hover:text-primary/80 p-1 rounded"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid={`admin.${fieldType}.cancel_button.${idx + 1}`}
+                      onClick={() => setEditingIndex(null)}
+                      className="text-muted-foreground hover:text-foreground p-1 rounded"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 text-sm font-mono">{opt}</span>
+                    <button
+                      type="button"
+                      data-ocid={`admin.${fieldType}.edit_button.${idx + 1}`}
+                      onClick={() => startEdit(idx, opt)}
+                      className="text-muted-foreground hover:text-primary p-1 rounded transition-colors"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid={`admin.${fieldType}.delete_button.${idx + 1}`}
+                      onClick={() => handleDelete(opt)}
+                      className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 export function AdminPage() {
-  const [password, setPassword] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
-  const [error, setError] = useState(false);
-
-  const handleUnlock = () => {
-    if (password === ADMIN_PASSWORD) {
-      setUnlocked(true);
-      setError(false);
-    } else {
-      setError(true);
-      setPassword("");
-    }
-  };
-
-  if (!unlocked) {
-    return (
-      <main className="max-w-md mx-auto px-4 py-24">
-        <div className="rounded-2xl border border-border bg-card p-8 space-y-6">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
-              <Lock className="h-6 w-6 text-primary" />
-            </div>
-            <h2 className="font-display font-semibold text-xl text-foreground">
-              Admin Settings
-            </h2>
-            <p className="text-sm font-mono text-muted-foreground text-center">
-              Enter the admin password to manage categories and dropdown
-              options.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            <Label
-              htmlFor="admin-password"
-              className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
-            >
-              Password
-            </Label>
-            <Input
-              id="admin-password"
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError(false);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
-              className={`bg-input border-border font-mono text-sm h-10 ${error ? "border-destructive" : ""}`}
-              placeholder="Enter password..."
-              data-ocid="admin.password.input"
-            />
-            {error && (
-              <p
-                className="text-xs font-mono text-destructive"
-                data-ocid="admin.password.error_state"
-              >
-                Incorrect password. Try again.
-              </p>
-            )}
-          </div>
-
-          <Button
-            className="w-full font-mono gap-2"
-            onClick={handleUnlock}
-            data-ocid="admin.unlock.primary_button"
-          >
-            <Shield className="h-4 w-4" /> Unlock Settings
-          </Button>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-display font-semibold text-xl text-foreground tracking-wide">
-            Admin Settings
-          </h2>
-          <p className="text-sm font-mono text-muted-foreground mt-0.5">
-            Manage dropdown options for all asset fields.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="font-mono gap-2"
-          onClick={() => setUnlocked(false)}
-          data-ocid="admin.lock.button"
-        >
-          <Lock className="h-4 w-4" /> Lock
-        </Button>
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <div className="mb-6 flex items-center gap-3">
+        <ShieldCheck className="h-5 w-5 text-primary" />
+        <h2 className="font-display text-lg font-bold">Admin Settings</h2>
       </div>
-
-      <div className="flex flex-col gap-6">
-        {SECTIONS.map((s) => (
-          <OptionsSection key={s.type} fieldType={s.type} label={s.label} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {FIELD_TYPES.map(({ key, label }) => (
+          <OptionSection key={key} fieldType={key} label={label} />
         ))}
       </div>
     </main>
