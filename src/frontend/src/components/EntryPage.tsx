@@ -9,11 +9,142 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronRight,
+  Cpu,
+  Loader2,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAddAsset, useGetOptions } from "../hooks/useQueries";
+
+type SpecFieldConfig = {
+  id: string;
+  label: string;
+  type: "text" | "select";
+  options?: string[];
+};
+
+function getSpecFields(category: string): SpecFieldConfig[] {
+  const c = category.toLowerCase();
+
+  if (/desktop|cpu|laptop|computer|workstation|\bpc\b/.test(c)) {
+    return [
+      { id: "model", label: "Model", type: "text" },
+      { id: "processor", label: "Processor", type: "text" },
+      {
+        id: "ram",
+        label: "RAM",
+        type: "select",
+        options: ["4GB", "8GB", "16GB", "32GB", "64GB"],
+      },
+      {
+        id: "storageType",
+        label: "Storage Type",
+        type: "select",
+        options: ["HDD", "SSD", "Both"],
+      },
+      {
+        id: "storageCapacity",
+        label: "Storage Capacity",
+        type: "select",
+        options: ["128GB", "256GB", "512GB", "1TB", "2TB"],
+      },
+    ];
+  }
+  if (/printer/.test(c)) {
+    return [
+      { id: "modelName", label: "Model Name", type: "text" },
+      {
+        id: "printerType",
+        label: "Printer Type",
+        type: "select",
+        options: ["Ink", "Cartridge", "Barcode", "Laser", "Thermal"],
+      },
+    ];
+  }
+  if (/monitor|display|screen/.test(c)) {
+    return [
+      { id: "model", label: "Model", type: "text" },
+      { id: "screenSize", label: "Screen Size", type: "text" },
+      {
+        id: "resolution",
+        label: "Resolution",
+        type: "select",
+        options: ["HD", "Full HD", "2K", "4K"],
+      },
+    ];
+  }
+  if (/server/.test(c)) {
+    return [
+      { id: "model", label: "Model", type: "text" },
+      { id: "processor", label: "Processor", type: "text" },
+      {
+        id: "ram",
+        label: "RAM",
+        type: "select",
+        options: ["4GB", "8GB", "16GB", "32GB", "64GB"],
+      },
+      {
+        id: "storageType",
+        label: "Storage Type",
+        type: "select",
+        options: ["HDD", "SSD", "Both"],
+      },
+      {
+        id: "storageCapacity",
+        label: "Storage Capacity",
+        type: "select",
+        options: ["128GB", "256GB", "512GB", "1TB", "2TB"],
+      },
+      { id: "osSoftware", label: "OS / Software", type: "text" },
+    ];
+  }
+  if (/network|router|switch|firewall|access point/.test(c)) {
+    return [
+      { id: "model", label: "Model", type: "text" },
+      {
+        id: "ports",
+        label: "Ports",
+        type: "select",
+        options: ["4", "8", "16", "24", "48"],
+      },
+      {
+        id: "speed",
+        label: "Speed",
+        type: "select",
+        options: ["100Mbps", "1Gbps", "10Gbps"],
+      },
+    ];
+  }
+  if (/ups|power/.test(c)) {
+    return [
+      { id: "model", label: "Model", type: "text" },
+      { id: "capacityVA", label: "Capacity VA", type: "text" },
+    ];
+  }
+  if (/phone|mobile|tablet/.test(c)) {
+    return [
+      { id: "model", label: "Model", type: "text" },
+      { id: "imei", label: "IMEI", type: "text" },
+    ];
+  }
+  if (/scanner/.test(c)) {
+    return [
+      { id: "model", label: "Model", type: "text" },
+      {
+        id: "scannerType",
+        label: "Scanner Type",
+        type: "select",
+        options: ["Flatbed", "Sheet-fed", "Handheld", "Barcode"],
+      },
+    ];
+  }
+  return [];
+}
 
 const defaultForm = {
   assetName: "",
@@ -32,6 +163,7 @@ export function EntryPage({
   onGoToDashboard,
 }: { onGoToDashboard: () => void }) {
   const [form, setForm] = useState(defaultForm);
+  const [specs, setSpecs] = useState<Record<string, string>>({});
   const [lastRegistered, setLastRegistered] = useState<string | null>(null);
   const addAsset = useAddAsset();
 
@@ -40,6 +172,13 @@ export function EntryPage({
   const { data: vendors = [] } = useGetOptions("vendor");
   const { data: statuses = [] } = useGetOptions("status");
 
+  const specFields = getSpecFields(form.category);
+
+  const handleCategoryChange = (v: string) => {
+    setForm((f) => ({ ...f, category: v }));
+    setSpecs({});
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.assetName || !form.category || !form.status) {
@@ -47,9 +186,17 @@ export function EntryPage({
       return;
     }
     try {
-      await addAsset.mutateAsync(form);
+      const specEntries = Object.entries(specs)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" | ");
+      const combinedNotes = specEntries
+        ? `[SPECS] ${specEntries}\n[NOTES] ${form.notes}`
+        : form.notes;
+      await addAsset.mutateAsync({ ...form, notes: combinedNotes });
       setLastRegistered(form.assetName);
       setForm(defaultForm);
+      setSpecs({});
       toast.success(`"${form.assetName}" registered successfully.`);
     } catch (err) {
       toast.error(
@@ -82,6 +229,7 @@ export function EntryPage({
     label: string,
     value: string,
     options: string[],
+    onChange?: (v: string) => void,
   ) => (
     <div className="flex flex-col gap-1.5">
       <Label
@@ -91,8 +239,8 @@ export function EntryPage({
         {label}
       </Label>
       <Select
-        value={value}
-        onValueChange={(v) => setForm((f) => ({ ...f, [id]: v }))}
+        value={value || undefined}
+        onValueChange={onChange ?? ((v) => setForm((f) => ({ ...f, [id]: v })))}
       >
         <SelectTrigger
           id={id}
@@ -114,6 +262,55 @@ export function EntryPage({
           No options yet — add them in Admin Settings
         </p>
       )}
+    </div>
+  );
+
+  const specTextField = (cfg: SpecFieldConfig) => (
+    <div key={cfg.id} className="flex flex-col gap-1.5">
+      <Label
+        htmlFor={`spec-${cfg.id}`}
+        className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
+      >
+        {cfg.label}
+      </Label>
+      <Input
+        id={`spec-${cfg.id}`}
+        type="text"
+        value={specs[cfg.id] ?? ""}
+        onChange={(e) => setSpecs((s) => ({ ...s, [cfg.id]: e.target.value }))}
+        className="bg-input border-border font-mono text-sm h-9"
+        data-ocid={`spec.${cfg.id}.input`}
+      />
+    </div>
+  );
+
+  const specSelectField = (cfg: SpecFieldConfig) => (
+    <div key={cfg.id} className="flex flex-col gap-1.5">
+      <Label
+        htmlFor={`spec-${cfg.id}`}
+        className="text-xs font-mono text-muted-foreground uppercase tracking-wider"
+      >
+        {cfg.label}
+      </Label>
+      <Select
+        value={specs[cfg.id] || undefined}
+        onValueChange={(v) => setSpecs((s) => ({ ...s, [cfg.id]: v }))}
+      >
+        <SelectTrigger
+          id={`spec-${cfg.id}`}
+          className="bg-input border-border font-mono text-sm h-9"
+          data-ocid={`spec.${cfg.id}.select`}
+        >
+          <SelectValue placeholder={`Select ${cfg.label}`} />
+        </SelectTrigger>
+        <SelectContent>
+          {(cfg.options ?? []).map((opt) => (
+            <SelectItem key={opt} value={opt} className="font-mono text-sm">
+              {opt}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 
@@ -180,7 +377,13 @@ export function EntryPage({
               {field("assetName", "Asset Name *", form.assetName)}
               {field("macId", "MAC ID", form.macId)}
               {field("serviceTag", "Service Tag", form.serviceTag)}
-              {selectField("category", "Category *", form.category, categories)}
+              {selectField(
+                "category",
+                "Category *",
+                form.category,
+                categories,
+                handleCategoryChange,
+              )}
               {selectField(
                 "department",
                 "Department",
@@ -221,6 +424,37 @@ export function EntryPage({
               />
             </div>
           </div>
+
+          {/* Category-specific Specifications */}
+          <AnimatePresence>
+            {specFields.length > 0 && (
+              <motion.div
+                key={form.category}
+                initial={{ opacity: 0, y: 10, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -6, height: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                style={{ overflow: "hidden" }}
+                data-ocid="entry.specs.panel"
+              >
+                <div className="rounded-xl border border-primary/25 bg-primary/5 p-6 space-y-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cpu className="h-4 w-4 text-primary" />
+                    <p className="text-xs font-mono text-primary uppercase tracking-widest font-semibold">
+                      Specifications — {form.category}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {specFields.map((cfg) =>
+                      cfg.type === "select"
+                        ? specSelectField(cfg)
+                        : specTextField(cfg),
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="flex justify-end">
             <Button

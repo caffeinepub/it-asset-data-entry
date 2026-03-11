@@ -1,9 +1,9 @@
 import Nat "mo:core/Nat";
 import Array "mo:core/Array";
 import Text "mo:core/Text";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   type Asset = {
     id : Nat;
